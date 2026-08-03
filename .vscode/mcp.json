@@ -1,0 +1,7 @@
+{
+  "servers": {
+    "airflix-providers": {
+      "url": "https://zenda-cross.gitmcp.io/airflix-providers"
+    }
+  }
+}
