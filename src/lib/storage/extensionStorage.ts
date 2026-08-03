@@ -210,11 +210,14 @@ export class ExtensionStorage {
    * Get installed providers
    */
   getInstalledProviders(): ProviderExtension[] {
-    return (
+    const list =
       mainStorage.getArray<ProviderExtension>(
         ExtensionKeys.INSTALLED_PROVIDERS,
-      ) || []
-    );
+      ) || [];
+    return list.map(item => ({
+      ...item,
+      display_name: String(item.display_name || item.value).replace(/vegamovies|vegamovie|vega/gi, 'AirFlix'),
+    }));
   }
 
   /**
@@ -228,11 +231,14 @@ export class ExtensionStorage {
    * Get available providers
    */
   getAvailableProviders(author = ''): ProviderExtension[] {
-    return (
+    const list =
       mainStorage.getArray<ProviderExtension>(
         this.scopedKey(ExtensionKeys.AVAILABLE_PROVIDERS, author),
-      ) || []
-    );
+      ) || [];
+    return list.map(item => ({
+      ...item,
+      display_name: String(item.display_name || item.value).replace(/vegamovies|vegamovie|vega/gi, 'AirFlix'),
+    }));
   }
 
   /**

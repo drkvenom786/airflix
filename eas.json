@@ -29,17 +29,8 @@
         "APP_VARIANT": "playstore"
       },
       "android": {
-        "buildType": "aab",
+        "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "android": {
-        "serviceAccountKeyPath": "./service-account-key.json",
-        "track": "internal",
-        "releaseStatus": "inProgress"
       }
     }
   }

@@ -164,20 +164,6 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
             />
           </Pressable>
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add provider source"
-          className="h-16 w-16 items-center justify-center"
-          style={({pressed}) => ({
-            backgroundColor: pressed ? colors.surfaceBright : '#171717',
-            borderColor: primary,
-            borderRadius: 20,
-            borderWidth: 2,
-          })}
-          onPress={() => setShowAddDialog(true)}>
-          <MaterialCommunityIcons name="plus" size={28} color={primary} />
-        </Pressable>
       </View>
 
       <MaterialDialogSurface
@@ -194,7 +180,7 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
             <Text
               className="mt-1 text-xs"
               style={{color: colors.onSurfaceVariant}}>
-              Select or remove a source
+              Integrated AirFlix provider sources
             </Text>
           </View>
           <Pressable
@@ -253,20 +239,6 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
                       color={colors.primary}
                     />
                   )}
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={`Remove ${source.author} source`}
-                  className="ml-3 h-10 w-10 items-center justify-center"
-                  style={{
-                    backgroundColor: colors.errorContainer,
-                    borderRadius: 14,
-                  }}
-                  onPress={() => handleRemoveSource(source.author)}>
-                  <MaterialCommunityIcons
-                    name="trash-can-outline"
-                    size={20}
-                    color={colors.onErrorContainer}
-                  />
                 </Pressable>
               </View>
             );

@@ -128,7 +128,7 @@ export class ExtensionManager {
 
       const providers: ProviderExtension[] = response.data.map((item: any) => ({
         value: item.value,
-        display_name: item.display_name,
+        display_name: String(item.display_name || item.value).replace(/vegamovies|vegamovie|vega/gi, 'AirFlix'),
         disabled: item.disabled || false,
         source: activeSource,
         version: item.version,

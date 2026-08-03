@@ -170,6 +170,9 @@ module.exports = () => {
         hasFirebase: hasAndroidGoogleServices || hasIosGooglePlist,
         isPlayStore: IS_PLAYSTORE,
         tmdbApiKey,
+        eas: {
+          projectId: "169bc328-0acd-4697-931b-29627cd1f05d"
+        }
       },
     },
   };

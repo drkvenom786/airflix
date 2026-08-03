@@ -323,16 +323,7 @@ const ContentOverview = ({
             marginTop: 18,
           }}>
           <InfoAction icon="magnify" label="Search" onPress={onSearchTitle} />
-          {onOpenWeb ? (
-            <InfoAction icon="web" label="Web" onPress={onOpenWeb} />
-          ) : null}
-          {onOpenStory ? (
-            <InfoAction
-              icon="book-open-page-variant-outline"
-              label="Explore"
-              onPress={onOpenStory}
-            />
-          ) : trailerUrl ? (
+          {trailerUrl ? (
             <InfoAction
               icon="movie-play-outline"
               label="Trailer"
