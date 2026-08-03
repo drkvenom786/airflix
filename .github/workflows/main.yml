@@ -86,6 +86,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
+      - name: Build sandbox runtime
+        run: npm run build:sandbox
+
       - name: Generate ${{ matrix.variant }} native project
         env:
           APP_VARIANT: ${{ matrix.variant }}
@@ -156,6 +159,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+
+      - name: Build sandbox runtime
+        run: npm run build:sandbox
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
