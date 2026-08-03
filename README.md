@@ -37,14 +37,6 @@
 
 ---
 
-## 📱 Screenshots & Preview
-
-<div align="center">
-  <img src="assets/adaptive_icon.png" alt="AirFlix App Preview" width="180" style="border-radius: 20px; margin: 10px;" />
-</div>
-
----
-
 ## 📥 Installation
 
 1. Go to the [**Releases**](https://github.com/drkvenom786/airflix/releases) page.
