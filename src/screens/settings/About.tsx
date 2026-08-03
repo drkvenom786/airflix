@@ -93,7 +93,15 @@ export const checkForUpdate = async (
     const res = await fetch(
       'https://api.github.com/repos/drkvenom786/airflix/releases/latest',
     );
+    if (!res.ok) {
+      showToast && ToastAndroid.show('App is up to date', ToastAndroid.SHORT);
+      return;
+    }
     const data = await res.json();
+    if (!data || !data.tag_name) {
+      showToast && ToastAndroid.show('App is up to date', ToastAndroid.SHORT);
+      return;
+    }
     const localVersion = Application.nativeApplicationVersion;
     const remoteVersion = Number(
       data.tag_name.replace('v', '')?.split('.').join(''),
