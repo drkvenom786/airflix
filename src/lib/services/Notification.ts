@@ -174,9 +174,7 @@ class NotificationService {
       body: options.body,
       data: options.data,
       android: {
-        smallIcon: isDownloadNotification
-          ? 'ic_download_notification'
-          : 'ic_notification',
+        smallIcon: 'ic_notification',
         channelId: channelId || this._defaultChannelId,
         color: notificationColor,
         pressAction: {
