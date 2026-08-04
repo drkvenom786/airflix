@@ -81,7 +81,7 @@ cd android
     <b>VENOM</b>
   </a>
   <br />
-  <a href="https://drkvenom786.github.io/webpage/">🌐 drkvenom786.github.io/webpage</a>
+  <a href="https://drkvenom786.github.io/webpage/">🌐 vennomx.com</a>
 </div>
 
 ---
