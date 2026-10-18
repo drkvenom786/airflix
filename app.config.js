@@ -13,10 +13,16 @@ const tmdbApiKey =
   process.env.TMDB_API_KEY || process.env.EXPO_PUBLIC_TMDB_API_KEY || '';
 
 module.exports = () => {
+  const IS_PLAYSTORE = process.env.APP_VARIANT === 'playstore';
+  const HAS_FIREBASE =
+    !IS_PLAYSTORE && (hasAndroidGoogleServices || hasIosGooglePlist);
+  const PACKAGE_NAME = IS_PLAYSTORE ? 'airflix.app' : 'com.airflix';
+  const APP_SCHEME = IS_PLAYSTORE ? 'airflixapp' : 'com.airflix';
   const plugins = [
     './plugins/with-custom-native-modules.js',
     './plugins/android-native-config.js',
     './plugins/with-saf-copy-module.js',
+    './plugins/with-uri-permission-module.js',
     './plugins/with-proguard-rules.js',
     './plugins/with-jvm-args.js',
     './plugins/with-android-notification-icons.js',
@@ -24,13 +30,8 @@ module.exports = () => {
     './plugins/with-android-release-gradle.js',
     './plugins/with-android-signing.js',
     './plugins/with-android-okhttp.js',
-    ...(hasAndroidGoogleServices || hasIosGooglePlist
-      ? ['@react-native-firebase/app']
-      : []),
-    ...(hasAndroidGoogleServices || hasIosGooglePlist
-      ? ['@react-native-firebase/crashlytics']
-      : []),
-    ['expo-build-properties', {android: {usePrecompiledHeaders: true}}],
+    ...(HAS_FIREBASE ? ['@react-native-firebase/app'] : []),
+    ...(HAS_FIREBASE ? ['@react-native-firebase/crashlytics'] : []),
     [
       'react-native-video',
       {
@@ -45,6 +46,12 @@ module.exports = () => {
       },
     ],
     [
+      'react-native-google-cast',
+      {
+        expandedController: true,
+      },
+    ],
+    [
       'react-native-edge-to-edge',
       {
         android: {
@@ -53,7 +60,6 @@ module.exports = () => {
         },
       },
     ],
-    './plugins/with-dynamic-launcher-splash.js',
     [
       'react-native-bootsplash',
       {
@@ -67,6 +73,8 @@ module.exports = () => {
       'expo-build-properties',
       {
         android: {
+          minSdkVersion: 24,
+          usePrecompiledHeaders: true,
           extraMavenRepos: [
             '../../node_modules/@notifee/react-native/android/libs',
           ],
@@ -102,36 +110,33 @@ module.exports = () => {
     'expo-font',
     'expo-status-bar',
   ];
-  const IS_PLAYSTORE = process.env.APP_VARIANT === 'playstore';
-  const PACKAGE_NAME = 'com.venom.airflix';
-  const APP_SCHEME = IS_PLAYSTORE ? 'airflix' : 'com.venom.airflix';
-
   return {
     expo: {
-      name: 'AirFlix',
+      name: 'Airflix',
       scheme: APP_SCHEME,
-      displayName: 'AirFlix',
+      displayName: 'Airflix',
       jsEngine: 'hermes',
       newArchEnabled: true,
       autolinking: {exclude: ['expo-splash-screen']},
       plugins,
       slug: 'airflix',
-      version: '4.0.2',
+      version: '1.0.0',
       userInterfaceStyle: 'dark',
       experiments: {
         reactCompiler: true,
       },
       android: {
-        ...(hasAndroidGoogleServices
+        ...(!IS_PLAYSTORE && hasAndroidGoogleServices
           ? {googleServicesFile: androidGoogleServicesFile}
           : {}),
-        minSdkVersion: 28,
+        minSdkVersion: 24,
         package: PACKAGE_NAME,
-        versionCode: 182,
+        versionCode: 190,
         permissions: [
           'FOREGROUND_SERVICE',
           'FOREGROUND_SERVICE_DATA_SYNC',
           'FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+          'ACCESS_NETWORK_STATE',
           'INTERNET',
           'WRITE_SETTINGS',
         ],
@@ -161,18 +166,18 @@ module.exports = () => {
         supportsPictureInPicture: true,
       },
       ios: {
-        ...(hasIosGooglePlist
+        ...(!IS_PLAYSTORE && hasIosGooglePlist
           ? {googleServicesFile: iosGoogleServicesFile}
           : {}),
       },
       platforms: ['ios', 'android'],
       extra: {
-        hasFirebase: hasAndroidGoogleServices || hasIosGooglePlist,
+        eas: {
+          projectId: '40d98354-d3c8-4616-ab2e-70d9c297091f',
+        },
+        hasFirebase: HAS_FIREBASE,
         isPlayStore: IS_PLAYSTORE,
         tmdbApiKey,
-        eas: {
-          projectId: "169bc328-0acd-4697-931b-29627cd1f05d"
-        }
       },
     },
   };

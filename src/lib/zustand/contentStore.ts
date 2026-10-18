@@ -33,9 +33,24 @@ const useContentStore = create<Content>()(
         installedAt: 0,
         lastUpdated: 0,
       },
-      installedProviders: extensionStorage
-        .getInstalledProviders()
-        .sort((a, b) => a.display_name.localeCompare(b.display_name)),
+      installedProviders: (() => {
+        const installed = extensionStorage.getInstalledProviders();
+        if (installed && installed.length > 0) {
+          return installed.sort((a, b) =>
+            a.display_name.localeCompare(b.display_name),
+          );
+        }
+        try {
+          const { builtinProviders } = require('../services/builtinProviders');
+          return (builtinProviders || [])
+            .slice()
+            .sort((a: any, b: any) =>
+              a.display_name.localeCompare(b.display_name),
+            );
+        } catch {
+          return [];
+        }
+      })(),
       availableProviders: [],
       activeExtensionProvider: null,
 

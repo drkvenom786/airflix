@@ -6,7 +6,7 @@ import {
   ProviderSource,
 } from '../storage/extensionStorage';
 import {mainStorage} from '../storage/StorageService';
-import {createProviderSource} from '../utils/helpers';
+import {createProviderSource, getFallbackSourceUrl} from '../utils/helpers';
 /**
  * Extension manager service for handling dynamic provider loading
  */
@@ -118,17 +118,47 @@ export class ExtensionManager {
         ? `${this.baseUrlTestMode}/manifest.json`
         : this.getManifest(activeSource.url);
       console.log('Fetching manifest from:', manifestUrl);
-      const response = await axios.get(manifestUrl, {
-        timeout: 10000,
-      });
 
-      if (!response.data || !Array.isArray(response.data)) {
+      let rawData: any = null;
+      try {
+        const response = await axios.get(manifestUrl, {
+          timeout: 10000,
+          responseType: 'json',
+        });
+        rawData = response.data;
+      } catch (primaryError) {
+        const fallbackBase = getFallbackSourceUrl(activeSource.url);
+        if (fallbackBase && !this.testMode) {
+          const fallbackUrl = this.getManifest(fallbackBase);
+          console.log(
+            'Primary manifest fetch failed, trying CDN fallback:',
+            fallbackUrl,
+          );
+          const fallbackResponse = await axios.get(fallbackUrl, {
+            timeout: 10000,
+            responseType: 'json',
+          });
+          rawData = fallbackResponse.data;
+        } else {
+          throw primaryError;
+        }
+      }
+
+      if (typeof rawData === 'string') {
+        try {
+          rawData = JSON.parse(rawData);
+        } catch {
+          // Keep raw data if parsing fails
+        }
+      }
+
+      if (!rawData || !Array.isArray(rawData)) {
         throw new Error('Invalid manifest format');
       }
 
-      const providers: ProviderExtension[] = response.data.map((item: any) => ({
+      const providers: ProviderExtension[] = rawData.map((item: any) => ({
         value: item.value,
-        display_name: String(item.display_name || item.value).replace(/vegamovies|vegamovie|vega/gi, 'AirFlix'),
+        display_name: item.display_name,
         disabled: item.disabled || false,
         source: activeSource,
         version: item.version,
@@ -178,12 +208,35 @@ export class ExtensionManager {
           const url = `${sourceUrl}/dist/${providerValue}/${fileName}.js`;
           console.log(`Downloading: ${url}`);
 
-          const response = await axios.get(url, {
-            timeout: 15000,
-          });
+          let fileData: any = null;
+          try {
+            const response = await axios.get(url, {
+              timeout: 15000,
+              transformResponse: [data => data],
+            });
+            fileData = response.data;
+          } catch (primaryErr) {
+            const fallbackBase = getFallbackSourceUrl(sourceUrl);
+            if (fallbackBase) {
+              const fallbackUrl = `${fallbackBase}/dist/${providerValue}/${fileName}.js`;
+              console.log(
+                `Primary download failed, trying CDN fallback: ${fallbackUrl}`,
+              );
+              const fallbackResponse = await axios.get(fallbackUrl, {
+                timeout: 15000,
+                transformResponse: [data => data],
+              });
+              fileData = fallbackResponse.data;
+            } else {
+              throw primaryErr;
+            }
+          }
 
-          if (response.data) {
-            modules[fileName] = response.data;
+          if (fileData) {
+            modules[fileName] =
+              typeof fileData === 'string'
+                ? fileData
+                : JSON.stringify(fileData);
           }
         } catch (error) {
           // Only log error for required files
@@ -392,7 +445,26 @@ export class ExtensionManager {
       );
     }
 
-    return extensionStorage.getProviderModules(providerValue, sourceAuthor);
+    const cached = extensionStorage.getProviderModules(
+      providerValue,
+      sourceAuthor,
+    );
+    if (cached && cached.modules && cached.modules.posts) {
+      return cached;
+    }
+
+    try {
+      const { builtinProviderModules } = require('./builtinProviders');
+      const fallbackModule = builtinProviderModules[providerValue];
+      if (fallbackModule) {
+        extensionStorage.cacheProviderModules(fallbackModule);
+        return fallbackModule;
+      }
+    } catch {
+      // Fallback failed
+    }
+
+    return cached;
   }
 
   /**
@@ -412,6 +484,59 @@ export class ExtensionManager {
   async initialize(): Promise<void> {
     try {
       this.migrateLegacyCustomProviderSource();
+
+      const defaultAuthor = 'd0x-dev';
+      const defaultUrl =
+        'https://raw.githubusercontent.com/d0x-dev/airflix-providers/refs/heads/main';
+
+      if (extensionStorage.getProviderSources().length === 0) {
+        // Pre-add default provider source
+        extensionStorage.addProviderSources(defaultAuthor, defaultUrl);
+        extensionStorage.setDefaultProviderSource(defaultAuthor);
+      }
+
+      // Pre-install all bundled providers and cache their modules
+      try {
+        const { builtinProviders, builtinProviderModules } = require('./builtinProviders');
+        const installedProviders = extensionStorage.getInstalledProviders();
+        const installedMap = new Map(installedProviders.map(p => [p.value, p]));
+        let hasNewInstall = false;
+
+        for (const provider of builtinProviders) {
+          if (!installedMap.has(provider.value)) {
+            installedProviders.push(provider);
+            hasNewInstall = true;
+          }
+
+          // Cache module code if not already cached
+          const existing = extensionStorage.getProviderModules(
+            provider.value,
+            provider.source?.author,
+          );
+          if (!existing || !existing.modules?.posts) {
+            const mod = builtinProviderModules[provider.value];
+            if (mod) {
+              extensionStorage.cacheProviderModules(mod);
+            }
+          }
+        }
+
+        if (hasNewInstall) {
+          extensionStorage.setInstalledProviders(installedProviders);
+        }
+
+        // Set manifest cache and available providers if empty
+        if (
+          extensionStorage.getAvailableProviders(defaultAuthor).length === 0
+        ) {
+          extensionStorage.setAvailableProviders(defaultAuthor, builtinProviders);
+          extensionStorage.setManifestCache(builtinProviders, defaultAuthor);
+        }
+
+        mainStorage.setBool('isFirstLaunch', false);
+      } catch (err) {
+        console.warn('Failed to pre-install bundled providers:', err);
+      }
 
       // Load providers from cache
       const source = this.getActiveSource();

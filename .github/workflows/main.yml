@@ -84,10 +84,7 @@ jobs:
           java-version: '17'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-
-      - name: Build sandbox runtime
-        run: npm run build:sandbox
+        run: npm ci
 
       - name: Generate ${{ matrix.variant }} native project
         env:
@@ -107,13 +104,13 @@ jobs:
             exit 1
           fi
           if [ "${{ matrix.variant }}" = "playstore" ]; then
-            grep -q 'package="com.venom.airflix"' "$MANIFEST"
+            grep -q 'package="airflix.app"' "$MANIFEST"
             if grep -q 'REQUEST_INSTALL_PACKAGES' "$MANIFEST"; then
               echo "Installer permission found in Play Store manifest"
               exit 1
             fi
           else
-            grep -q 'package="com.venom.airflix"' "$MANIFEST"
+            grep -q 'package="com.airflix"' "$MANIFEST"
           fi
 
   build-android:
@@ -158,10 +155,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-
-      - name: Build sandbox runtime
-        run: npm run build:sandbox
+        run: npm ci
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -169,15 +163,23 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # Decode the keystore from your secret
-      - name: Decode keystore
+      # Decode or generate the keystore
+      - name: Setup keystore
         run: |
+          mkdir -p android/app
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
-          elif [ -f "debug.keystore" ]; then
-            echo "Using debug keystore fallback"
-            cp debug.keystore android/app/release.keystore
+          else
+            echo "Generating signing release keystore..."
+            keytool -genkey -v -keystore android/app/release.keystore \
+              -alias "${{ secrets.KEY_ALIAS || 'airflix' }}" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "${{ secrets.KEYSTORE_PASSWORD || 'airflix123' }}" \
+              -keypass "${{ secrets.KEY_PASSWORD || 'airflix123' }}" \
+              -dname "CN=Airflix, OU=Airflix, O=Airflix, L=Unknown, S=Unknown, C=US"
           fi
+          # Verify the keystore was created properly
+          ls -la android/app/release.keystore
 
       # Make gradlew executable
       - name: Make gradlew executable
@@ -190,21 +192,17 @@ jobs:
           echo "BUILD_TIME=$(date -u '+%H-%M-%S')" >> $GITHUB_ENV
           echo "Build started at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
-      # Build the APKs
-      - name: Build Android App
+      # Build the APKs with DIRECT SIGNING PARAMETERS
+      - name: Build Android App with Direct Signing Parameters
         run: |
           cd android
           KEYSTORE_PATH=$(realpath app/release.keystore)
-          if [ -n "${{ secrets.KEYSTORE_PASSWORD }}" ]; then
-            ./gradlew assembleRelease \
-              -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
-              -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
-              -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-              -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}" \
-              --stacktrace
-          else
-            ./gradlew assembleRelease --stacktrace
-          fi
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD || 'airflix123' }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS || 'airflix' }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD || 'airflix123' }}" \
+            --stacktrace
 
       # Find and identify the APKs
       - name: Identify APKs
@@ -231,7 +229,7 @@ jobs:
 
           # Set the file paths with clean names
           if [ -f "$UNIVERSAL_APK" ]; then
-            UNIVERSAL_APK_NAME="AirFlix-nightly-v${VERSION}-universal-${BUILD_DATE}.apk"
+            UNIVERSAL_APK_NAME="Airflix-nightly-v${VERSION}-universal-${BUILD_DATE}.apk"
             cp "$UNIVERSAL_APK" "apks/${UNIVERSAL_APK_NAME}"
             echo "UNIVERSAL_APK_NAME=${UNIVERSAL_APK_NAME}" >> $GITHUB_ENV
             echo "UNIVERSAL_APK_FOUND=true" >> $GITHUB_ENV
@@ -242,7 +240,7 @@ jobs:
           fi
 
           if [ -f "$ARMV7_APK" ]; then
-            ARMV7_APK_NAME="AirFlix-nightly-v${VERSION}-armv7-${BUILD_DATE}.apk"
+            ARMV7_APK_NAME="Airflix-nightly-v${VERSION}-armv7-${BUILD_DATE}.apk"
             cp "$ARMV7_APK" "apks/${ARMV7_APK_NAME}"
             echo "ARMV7_APK_NAME=${ARMV7_APK_NAME}" >> $GITHUB_ENV
             echo "ARMV7_APK_FOUND=true" >> $GITHUB_ENV
@@ -253,7 +251,7 @@ jobs:
           fi
 
           if [ -f "$ARMV8_APK" ]; then
-            ARMV8_APK_NAME="AirFlix-nightly-v${VERSION}-armv8-${BUILD_DATE}.apk"
+            ARMV8_APK_NAME="Airflix-nightly-v${VERSION}-armv8-${BUILD_DATE}.apk"
             cp "$ARMV8_APK" "apks/${ARMV8_APK_NAME}"
             echo "ARMV8_APK_NAME=${ARMV8_APK_NAME}" >> $GITHUB_ENV
             echo "ARMV8_APK_FOUND=true" >> $GITHUB_ENV
@@ -332,7 +330,7 @@ jobs:
       - name: Upload APKs as GitHub artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: AirFlix-Nightly-v${{ env.APP_VERSION }}-${{ env.BUILD_DATE }}
+          name: Airflix-Nightly-v${{ env.APP_VERSION }}-${{ env.BUILD_DATE }}
           path: apks/*.apk
           if-no-files-found: warn
 
@@ -399,8 +397,8 @@ jobs:
           {
             "embeds": [
               {
-                "title": "AirFlix pre-build Build v${APP_VERSION}",
-                "description": "A new pre-build of **AirFlix** is ready for testing!",
+                "title": "Airflix pre-build Build v${APP_VERSION}",
+                "description": "A new pre-build of **Airflix App** is ready for testing!",
                 "color": 3447003,
                 "fields": [
                   {

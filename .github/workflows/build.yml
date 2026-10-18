@@ -1,0 +1,117 @@
+name: Build AirFlix APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build sandbox runtime
+        run: npm run build:sandbox
+
+      - name: Prebuild Android native project
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Setup Signing Keystore
+        run: |
+          mkdir -p android/app
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Decoding keystore from secrets..."
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          else
+            echo "Generating signing release keystore..."
+            keytool -genkey -v -keystore android/app/release.keystore \
+              -alias "${{ secrets.KEY_ALIAS || 'airflix' }}" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "${{ secrets.KEYSTORE_PASSWORD || 'airflix123' }}" \
+              -keypass "${{ secrets.KEY_PASSWORD || 'airflix123' }}" \
+              -dname "CN=Airflix, OU=Airflix, O=Airflix, L=Unknown, S=Unknown, C=US"
+          fi
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build Android Release APKs
+        run: |
+          cd android
+          KEYSTORE_PATH=$(realpath app/release.keystore)
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
+            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD || 'airflix123' }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS || 'airflix' }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD || 'airflix123' }}" \
+            --stacktrace
+
+      - name: Prepare APKs
+        id: prepare_apks
+        run: |
+          mkdir -p apks_output
+          VERSION=$(grep -m 1 "versionName " android/app/build.gradle | sed 's/.*versionName "\(.*\)".*/\1/')
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          
+          find android/app/build/outputs/apk/release -name "*.apk" -not -name "*unsigned*" -exec cp {} apks_output/ \;
+          ls -la apks_output/
+
+      - name: Upload APKs as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Airflix-APKs
+          path: apks_output/*.apk
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          tag_name: ${{ github.ref_name || format('v{0}-{1}', env.APP_VERSION, github.run_number) }}
+          name: Airflix v${{ env.APP_VERSION }} (Android 7+ Compatible)
+          body: |
+            ### Airflix Build v${{ env.APP_VERSION }}
+            - ✅ Compatible with **Android 7.0+ (API 24+)** and newer
+            - ✅ All **47 streaming providers preinstalled** and active out of the box
+            - ✅ Universal, ARM64-v8a, and ARMv7 APK builds included
+          files: apks_output/*.apk
+          draft: false
+          prerelease: false
