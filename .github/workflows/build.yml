@@ -69,6 +69,14 @@ jobs:
               -dname "CN=Airflix, OU=Airflix, O=Airflix, L=Unknown, S=Unknown, C=US"
           fi
 
+      - name: Increase swap space
+        run: |
+          sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
@@ -77,6 +85,9 @@ jobs:
           cd android
           KEYSTORE_PATH=$(realpath app/release.keystore)
           ./gradlew assembleRelease \
+            --no-daemon \
+            --max-workers=2 \
+            -Dorg.gradle.jvmargs="-Xmx4608m -XX:MaxMetaspaceSize=1024m -XX:+UseG1GC" \
             -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
             -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD || 'airflix123' }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS || 'airflix' }}" \
