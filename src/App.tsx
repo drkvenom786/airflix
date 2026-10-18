@@ -1,4 +1,7 @@
-import React, {useEffect} from 'react';
+import useContentStore from './lib/zustand/contentStore';
+import useThemeStore from './lib/zustand/themeStore';
+import React, {useEffect, useState} from 'react';
+import {useFonts} from 'expo-font';
 import './global.css';
 import Home from './screens/home/Home';
 import Info from './screens/home/Info';
@@ -20,7 +23,8 @@ import WebView from './screens/WebView';
 import SearchResults from './screens/SearchResults';
 import * as SystemUI from 'expo-system-ui';
 // import DisableProviders from './screens/settings/DisableProviders';
-import About, {checkForUpdate} from './screens/settings/About';
+import About from './screens/settings/About';
+import {checkForUpdate} from './screens/settings/Settings';
 import BootSplash from 'react-native-bootsplash';
 import {enableFreeze, enableScreens} from 'react-native-screens';
 import Preferences from './screens/settings/Preference';
@@ -40,6 +44,8 @@ import Extensions from './screens/settings/Extensions';
 import Constants from 'expo-constants';
 import {settingsStorage} from './lib/storage';
 import {updateProvidersService} from './lib/services/UpdateProviders';
+import {extensionManager} from './lib/services';
+import {extensionStorage} from './lib/storage/extensionStorage';
 import {QueryClientProvider} from '@tanstack/react-query';
 import {queryClient} from './lib/client';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -48,7 +54,6 @@ import notificationService from './lib/services/Notification';
 import WafWebViewDialog from './components/WafWebViewDialog';
 import ProviderSandboxHost from './components/ProviderSandboxHost';
 import {syncDohSettings} from './lib/services/dohService';
-import {runWasmProbe} from './lib/services/wasmProbe';
 import {
   reconcileCompletedDownloadOutputs,
   reconcileDownloadState,
@@ -112,6 +117,7 @@ export type RootStackParamList = {
     providerValue?: string;
     infoUrl?: string;
   };
+  SettingsStack: undefined;
 };
 
 export type SearchStackParamList = {
@@ -152,7 +158,6 @@ export type TabStackParamList = {
   SearchStack: undefined;
   WatchListStack: undefined;
   DownloadsStack: undefined;
-  SettingsStack: undefined;
 };
 const Tab = createBottomTabNavigator<TabStackParamList>();
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -165,18 +170,21 @@ export const openDownloadsScreen = (): void => {
   }
   pendingDownloadsNavigation = false;
   if (settingsStorage.hideDownloadsTab()) {
-    navigationRef.navigate('TabStack', {
-      screen: 'SettingsStack',
-      params: {screen: 'DownloadsStack'},
-    });
+    navigationRef.navigate('SettingsStack', {screen: 'DownloadsStack'} as any);
     return;
   }
   navigationRef.navigate('TabStack', {screen: 'DownloadsStack'});
 };
 
 const App = () => {
+  const [fontsLoaded] = useFonts({
+    'Linotee': require('../assets/fonts/Linotee.ttf'),
+    'BebasNeue': require('../assets/fonts/BebasNeue.ttf'),
+  });
+  const provider = useContentStore(state => state.provider);
   const {width: windowWidth} = useWindowDimensions();
   const isLargeScreen = windowWidth > 768;
+  const useLinoteeFont = useThemeStore(state => state.useLinoteeFont);
   LogBox.ignoreLogs([
     'You have passed a style to FlashList',
     'new NativeEventEmitter()',
@@ -221,11 +229,11 @@ const App = () => {
           console.warn('Download foreground reconciliation failed:', error),
         );
         syncFromSharedFolder().catch(error =>
-          console.warn('[AirFlixSync] Foreground sync failed:', error),
+          console.warn('[AirflixSync] Foreground sync failed:', error),
         );
       } else {
         publishSyncManifest().catch(error =>
-          console.warn('[AirFlixSync] Background publish failed:', error),
+          console.warn('[AirflixSync] Background publish failed:', error),
         );
       }
     });
@@ -236,7 +244,7 @@ const App = () => {
     const interval = setInterval(() => {
       if (AppState.currentState === 'active') {
         syncFromSharedFolder().catch(error =>
-          console.warn('[AirFlixSync] Periodic sync failed:', error),
+          console.warn('[AirflixSync] Periodic sync failed:', error),
         );
       }
     }, 30000);
@@ -244,18 +252,6 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    // DEV-only: probe whether Hermes on this build can run WebAssembly, to
-    // decide if quickjs-emscripten is a viable provider sandbox engine.
-    // Remove once the question is answered.
-    if (__DEV__) {
-      runWasmProbe().catch(error =>
-        console.warn('[wasm-probe] failed to run:', error),
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    // Apply telemetry preference before using analytics
     const optIn = settingsStorage.isTelemetryOptIn();
     if (hasFirebase) {
       try {
@@ -322,10 +318,45 @@ const App = () => {
     };
   }, []);
 
-  // Initialize update service
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Initialize update service and extensions
   useEffect(() => {
-    // Start automatic update checking at app startup
-    updateProvidersService.startAutomaticUpdateCheck();
+    const init = async () => {
+      try {
+        await extensionManager.initialize();
+        
+        // Wait for Zustand hydration to finish so it doesn't overwrite our sync
+        if (!useContentStore.persist.hasHydrated()) {
+          await new Promise<void>(resolve => {
+            useContentStore.persist.onFinishHydration(() => resolve());
+          });
+        }
+        
+        // Sync zustand store with the newly installed providers
+        const installedProviders = extensionStorage.getInstalledProviders();
+        if (installedProviders && installedProviders.length > 0) {
+          useContentStore.getState().setInstalledProviders(installedProviders);
+          
+          const currentProvider = useContentStore.getState().provider;
+          const currentProviderIsInstalled = installedProviders.some(
+            p => p.value === currentProvider?.value
+          );
+
+          if (!currentProvider?.value || !currentProviderIsInstalled) {
+            useContentStore.getState().setProvider(installedProviders[0]);
+            useContentStore.getState().setActiveExtensionProvider(installedProviders[0]);
+          }
+        }
+      } catch (err) {
+        console.error('Extension init failed:', err);
+      } finally {
+        setIsInitializing(false);
+        // Start automatic update checking at app startup after initialization
+        updateProvidersService.startAutomaticUpdateCheck();
+      }
+    };
+    init();
 
     // Cleanup on unmount
     return () => {
@@ -534,20 +565,6 @@ const App = () => {
             }}
           />
         )}
-        <Tab.Screen
-          name="SettingsStack"
-          component={SettingsStackScreen}
-          options={{
-            title: 'Settings',
-            tabBarIcon: ({focused, color, size}) => (
-              <MaterialCommunityIcons
-                name={focused ? 'cog' : 'cog-outline'}
-                color={color}
-                size={size}
-              />
-            ),
-          }}
-        />
       </Tab.Navigator>
     );
   }
@@ -558,6 +575,10 @@ const App = () => {
       checkForUpdate(() => {}, settingsStorage.isAutoDownloadEnabled(), false);
     }
   }, []);
+
+  if (isInitializing || !fontsLoaded) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
@@ -581,7 +602,9 @@ const App = () => {
                     openDownloadsScreen();
                   }
                   // Hide bootsplash
-                  await BootSplash.hide({fade: true});
+                  if (fontsLoaded) {
+                    await BootSplash.hide({fade: true});
+                  }
                   // Track initial screen
                   if (hasFirebase) {
                     try {
@@ -615,20 +638,20 @@ const App = () => {
                 theme={{
                   fonts: {
                     regular: {
-                      fontFamily: 'Inter_400Regular',
-                      fontWeight: '400',
+                      fontFamily: useLinoteeFont ? 'Linotee' : 'Inter_400Regular',
+                      fontWeight: (useLinoteeFont ? undefined : '400') as any,
                     },
                     medium: {
-                      fontFamily: 'Inter_500Medium',
-                      fontWeight: '500',
+                      fontFamily: useLinoteeFont ? 'Linotee' : 'Inter_500Medium',
+                      fontWeight: (useLinoteeFont ? undefined : '500') as any,
                     },
                     bold: {
-                      fontFamily: 'Inter_700Bold',
-                      fontWeight: '700',
+                      fontFamily: useLinoteeFont ? 'Linotee' : 'Inter_700Bold',
+                      fontWeight: (useLinoteeFont ? undefined : '700') as any,
                     },
                     heavy: {
-                      fontFamily: 'Inter_800ExtraBold',
-                      fontWeight: '800',
+                      fontFamily: useLinoteeFont ? 'Linotee' : 'Inter_800ExtraBold',
+                      fontWeight: (useLinoteeFont ? undefined : '800') as any,
                     },
                   },
                   dark: true,
@@ -650,6 +673,7 @@ const App = () => {
                     contentStyle: {backgroundColor: 'transparent'},
                   }}>
                   <Stack.Screen name="TabStack" component={TabStack} />
+                  <Stack.Screen name="SettingsStack" component={SettingsStackScreen} />
                   <Stack.Screen
                     name="Player"
                     component={Player}

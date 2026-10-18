@@ -136,18 +136,9 @@ export class ExtensionStorage {
    * Get provider sources
    */
   getProviderSource(getDefault = true): ProviderSource | undefined {
-    let sources =
+    const sources =
       mainStorage.getArray<ProviderSource>(ExtensionKeys.PROVIDER_SOURCES) ||
       [];
-    if (sources.length === 0) {
-      this.addProviderSources(
-        'drkvenom786',
-        'https://raw.githubusercontent.com/vega-org/vega-providers/refs/heads/main',
-      );
-      sources =
-        mainStorage.getArray<ProviderSource>(ExtensionKeys.PROVIDER_SOURCES) ||
-        [];
-    }
     if (sources.length === 0) {
       return undefined;
     }
@@ -210,14 +201,11 @@ export class ExtensionStorage {
    * Get installed providers
    */
   getInstalledProviders(): ProviderExtension[] {
-    const list =
+    return (
       mainStorage.getArray<ProviderExtension>(
         ExtensionKeys.INSTALLED_PROVIDERS,
-      ) || [];
-    return list.map(item => ({
-      ...item,
-      display_name: String(item.display_name || item.value).replace(/vegamovies|vegamovie|vega/gi, 'AirFlix'),
-    }));
+      ) || []
+    );
   }
 
   /**
@@ -231,14 +219,11 @@ export class ExtensionStorage {
    * Get available providers
    */
   getAvailableProviders(author = ''): ProviderExtension[] {
-    const list =
+    return (
       mainStorage.getArray<ProviderExtension>(
         this.scopedKey(ExtensionKeys.AVAILABLE_PROVIDERS, author),
-      ) || [];
-    return list.map(item => ({
-      ...item,
-      display_name: String(item.display_name || item.value).replace(/vegamovies|vegamovie|vega/gi, 'AirFlix'),
-    }));
+      ) || []
+    );
   }
 
   /**

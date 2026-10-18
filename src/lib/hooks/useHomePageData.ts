@@ -4,7 +4,7 @@ import {Content} from '../zustand/contentStore';
 import {cacheStorage} from '../storage';
 
 interface UseHomePageDataOptions {
-  provider: Content['provider'];
+  provider: Content['provider'] | null;
   enabled?: boolean;
 }
 
@@ -13,8 +13,9 @@ export const useHomePageData = ({
   enabled = true,
 }: UseHomePageDataOptions) => {
   return useQuery<HomePageData[], Error>({
-    queryKey: ['homePageData', provider.value],
+    queryKey: ['homePageData', provider?.value],
     queryFn: async ({signal}) => {
+      if (!provider) return [];
       // Fetch fresh data - cache is handled by React Query
       const data = await getHomePageData(provider, signal);
       return data;
@@ -31,7 +32,7 @@ export const useHomePageData = ({
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
     // Add initial data from cache for instant loading
     initialData: () => {
-      const cache = cacheStorage.getString('homeData' + provider.value);
+      const cache = cacheStorage.getString('homeData' + provider?.value);
       if (cache) {
         try {
           return JSON.parse(cache);
@@ -46,7 +47,7 @@ export const useHomePageData = ({
       onSuccess: (data: HomePageData[]) => {
         if (data && data.length > 0) {
           cacheStorage.setString(
-            'homeData' + provider.value,
+            'homeData' + provider?.value,
             JSON.stringify(data),
           );
         }

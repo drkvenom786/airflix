@@ -74,15 +74,16 @@ export default function Info({route, navigation}: Props): React.JSX.Element {
   const synopsis =
     meta?.description || info?.synopsis || 'No synopsis available';
   const posterImage =
+    info?.poster ||
     meta?.poster ||
     route.params.poster ||
     info?.image ||
-    'https://placehold.jp/24/363636/ffffff/500x750.png?text=AirFlix';
+    'https://placehold.jp/24/363636/ffffff/500x750.png?text=Airflix';
   const accentPoster = route.params.poster || meta?.poster || info?.image;
   const backgroundImage =
     meta?.background ||
     info?.image ||
-    'https://placehold.jp/24/363636/ffffff/900x1200.png?text=AirFlix';
+    'https://placehold.jp/24/363636/ffffff/900x1200.png?text=Airflix';
   useEffect(() => {
     if (!dynamicInfoAccentEnabled) {
       imageAccentRequest.current += 1;

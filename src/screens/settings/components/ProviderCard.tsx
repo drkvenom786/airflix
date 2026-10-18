@@ -1,3 +1,4 @@
+import AppText from '../../../components/ui/Text';
 import {MaterialCommunityIcons} from '@expo/vector-icons';
 import React from 'react';
 import {ActivityIndicator, Image, Pressable, Text, View} from 'react-native';
@@ -42,11 +43,11 @@ const ProviderStatusBadge = ({
           borderRadius: 16,
         }}>
         <ActivityIndicator size={14} color={colors.onSecondaryContainer} />
-        <Text
+        <AppText
           className="ml-2 text-xs font-bold"
           style={{color: colors.onSecondaryContainer}}>
           Testing
-        </Text>
+        </AppText>
       </View>
     );
   }
@@ -79,9 +80,9 @@ const ProviderStatusBadge = ({
         size={status === 'untested' ? 9 : 16}
         color={contentColor}
       />
-      <Text className="ml-2 text-xs font-bold" style={{color: contentColor}}>
+      <AppText className="ml-2 text-xs font-bold" style={{color: contentColor}}>
         {label}
-      </Text>
+      </AppText>
     </View>
   );
 };
@@ -106,13 +107,56 @@ const MetadataChip = ({
         size={15}
         color={colors.onSurfaceVariant}
       />
-      <Text
+      <AppText
         className="ml-1.5 text-xs capitalize"
         style={{color: colors.onSurfaceVariant}}
         numberOfLines={1}>
         {label}
-      </Text>
+      </AppText>
     </View>
+  );
+};
+
+const ProviderLogo = ({
+  icon,
+  providerValue,
+  active,
+}: {
+  icon?: string;
+  providerValue: string;
+  active: boolean;
+}) => {
+  const colors = useM3Colors();
+  const [imageFailed, setImageFailed] = React.useState(false);
+  const isAirflix = providerValue?.toLowerCase() === 'airflix';
+
+  if (isAirflix) {
+    return (
+      <Image
+        source={require('../../../../assets/icon.png')}
+        className="h-full w-full"
+        resizeMode="cover"
+      />
+    );
+  }
+
+  if (icon && !imageFailed) {
+    return (
+      <Image
+        source={{uri: icon}}
+        className="h-full w-full"
+        resizeMode="cover"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <MaterialCommunityIcons
+      name="web"
+      size={32}
+      color={active ? colors.onPrimary : colors.onSurface}
+    />
   );
 };
 
@@ -156,34 +200,26 @@ const ProviderCard = ({
               : colors.surfaceContainerHighest,
             borderRadius: 18,
           }}>
-          {provider.icon ? (
-            <Image
-              source={{uri: provider.icon}}
-              className="h-full w-full"
-              resizeMode="cover"
-            />
-          ) : (
-            <MaterialCommunityIcons
-              name="web"
-              size={32}
-              color={active ? colors.onPrimary : colors.onSurface}
-            />
-          )}
+          <ProviderLogo
+            icon={provider.icon}
+            providerValue={provider.value}
+            active={active}
+          />
         </View>
 
         <View className="ml-3 min-w-0 flex-1">
           <View className="flex-row items-center">
-            <Text
+            <AppText
               className="shrink text-xl font-bold"
               style={{color: colors.onSurface}}
               numberOfLines={1}>
               {provider.display_name || 'Unknown Provider'}
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               className="ml-2 text-xs font-semibold"
               style={{color: colors.onSurfaceVariant}}>
               v{provider.version || 'Unknown'}
-            </Text>
+            </AppText>
           </View>
           <View className="flex-row flex-wrap">
             <MetadataChip icon="web" label={provider.type || 'Unknown'} />
@@ -246,11 +282,11 @@ const ProviderCard = ({
             ) : (
               <MaterialCommunityIcons name="flask" size={21} color={primary} />
             )}
-            <Text
+            <AppText
               className="ml-2 text-sm font-bold"
               style={{color: colors.onSurface}}>
               {testStatus === 'testing' ? 'Testing' : 'Test'}
-            </Text>
+            </AppText>
           </Pressable>
 
           <Pressable
@@ -268,11 +304,11 @@ const ProviderCard = ({
               size={20}
               color={colors.onErrorContainer}
             />
-            <Text
+            <AppText
               className="ml-2 text-sm font-bold"
               style={{color: colors.onErrorContainer}}>
               Uninstall
-            </Text>
+            </AppText>
           </Pressable>
         </View>
       ) : (
@@ -294,11 +330,11 @@ const ProviderCard = ({
               color={colors.onPrimary}
             />
           )}
-          <Text
+          <AppText
             className="ml-2 text-sm font-bold"
             style={{color: colors.onPrimary}}>
             {installing ? 'Installing' : 'Install'}
-          </Text>
+          </AppText>
         </Pressable>
       )}
     </View>

@@ -1,3 +1,4 @@
+import AppText from '../../../components/ui/Text';
 import React, {useEffect, useMemo, useState} from 'react';
 import {Linking, Pressable, ScrollView, TextInput, View} from 'react-native';
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
@@ -106,11 +107,11 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
 
   return (
     <View className="mx-4 mt-3">
-      <Text
+      <AppText
         className="mb-2 ml-1 text-sm font-bold"
         style={{color: colors.onSurfaceVariant}}>
         Provider source
-      </Text>
+      </AppText>
       <View className="flex-row items-stretch gap-2">
         <View className="flex-1 overflow-hidden">
           <Pressable
@@ -141,12 +142,12 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
               />
             </View>
             <View className="ml-3 flex-1">
-              <Text
+              <AppText
                 className="text-xs font-medium"
                 style={{color: colors.onSurfaceVariant}}>
                 Active source
-              </Text>
-              <Text
+              </AppText>
+              <AppText
                 className="mt-0.5 text-base font-bold"
                 style={{
                   color: defaultSource
@@ -155,7 +156,7 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
                 }}
                 numberOfLines={1}>
                 {defaultSource?.author || 'Add a provider source'}
-              </Text>
+              </AppText>
             </View>
             <MaterialIcons
               name="expand-more"
@@ -164,6 +165,20 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
             />
           </Pressable>
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add provider source"
+          className="h-16 w-16 items-center justify-center"
+          style={({pressed}) => ({
+            backgroundColor: pressed ? colors.surfaceBright : '#171717',
+            borderColor: primary,
+            borderRadius: 20,
+            borderWidth: 2,
+          })}
+          onPress={() => setShowAddDialog(true)}>
+          <MaterialCommunityIcons name="plus" size={28} color={primary} />
+        </Pressable>
       </View>
 
       <MaterialDialogSurface
@@ -172,16 +187,16 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
         style={{maxHeight: 560}}>
         <View className="mb-3 flex-row items-center justify-between">
           <View>
-            <Text
+            <AppText
               className="text-lg font-semibold"
               style={{color: colors.onSurface}}>
               Provider source
-            </Text>
-            <Text
+            </AppText>
+            <AppText
               className="mt-1 text-xs"
               style={{color: colors.onSurfaceVariant}}>
-              Integrated AirFlix provider sources
-            </Text>
+              Select or remove a source
+            </AppText>
           </View>
           <Pressable
             accessibilityLabel="Close source picker"
@@ -220,17 +235,17 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
                   className="flex-1 flex-row items-center pr-2"
                   onPress={() => handleSelectSource(source)}>
                   <View className="flex-1">
-                    <Text
+                    <AppText
                       className="font-semibold"
                       style={{color: colors.onSurface}}>
                       {source.author}
-                    </Text>
-                    <Text
+                    </AppText>
+                    <AppText
                       className="mt-1 text-xs"
                       style={{color: colors.onSurfaceVariant}}
                       numberOfLines={1}>
                       {source.url}
-                    </Text>
+                    </AppText>
                   </View>
                   {isSelected && (
                     <MaterialCommunityIcons
@@ -239,6 +254,20 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
                       color={colors.primary}
                     />
                   )}
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Remove ${source.author} source`}
+                  className="ml-3 h-10 w-10 items-center justify-center"
+                  style={{
+                    backgroundColor: colors.errorContainer,
+                    borderRadius: 14,
+                  }}
+                  onPress={() => handleRemoveSource(source.author)}>
+                  <MaterialCommunityIcons
+                    name="trash-can-outline"
+                    size={20}
+                    color={colors.onErrorContainer}
+                  />
                 </Pressable>
               </View>
             );
@@ -253,12 +282,12 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
           setInputValue('');
         }}>
         <View className="flex-row items-center justify-between mb-3">
-          <Text
+          <AppText
             className="text-base font-semibold w-fit"
             style={{color: colors.onSurface}}
             numberOfLines={1}>
             Add Source
-          </Text>
+          </AppText>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close add source dialog"
@@ -278,31 +307,31 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
             />
           </Pressable>
         </View>
-        <Text className="text-sm font-medium" style={{color: colors.onSurface}}>
+        <AppText className="text-sm font-medium" style={{color: colors.onSurface}}>
           Enter url of your hosted provider source or GitHub author
-        </Text>
-        <Text
+        </AppText>
+        <AppText
           className="text-sm mt-[4px]"
           style={{color: colors.onSurfaceVariant, lineHeight: 20}}>
           How to create provider{' '}
-          <Text
+          <AppText
             accessibilityRole="link"
             style={{color: '#38BDF8', fontSize: 14, lineHeight: 20}}
-            onPress={() => Linking.openURL(socialLinks.github + '#airflix-app')}>
+            onPress={() => Linking.openURL(socialLinks.github + '#AirFlix')}>
             here
-          </Text>
-        </Text>
-        <Text
+          </AppText>
+        </AppText>
+        <AppText
           className="text-sm mt-[4px]"
           style={{color: colors.onSurfaceVariant, lineHeight: 20}}>
           or join Discord for support{' '}
-          <Text
+          <AppText
             accessibilityRole="link"
             style={{color: '#38BDF8', fontSize: 14, lineHeight: 20}}
             onPress={() => Linking.openURL(socialLinks.discord)}>
             Discord
-          </Text>
-        </Text>
+          </AppText>
+        </AppText>
         <TextInput
           className="h-14 px-4 mt-4"
           style={{
@@ -331,9 +360,9 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
               setShowAddDialog(false);
               setInputValue('');
             }}>
-            <Text className="font-medium" style={{color: colors.onSurface}}>
+            <AppText className="font-medium" style={{color: colors.onSurface}}>
               Cancel
-            </Text>
+            </AppText>
           </Pressable>
 
           <Pressable
@@ -343,11 +372,11 @@ const ProviderSourceManager = ({primary, visible, onSourceChanged}: Props) => {
               borderRadius: 16,
             }}
             onPress={handleConfirmAdd}>
-            <Text
+            <AppText
               className="font-medium"
               style={{color: readableOnColor(colors.primary)}}>
               Confirm
-            </Text>
+            </AppText>
           </Pressable>
         </View>
       </MaterialDialogSurface>

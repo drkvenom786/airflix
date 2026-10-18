@@ -5,7 +5,7 @@ const {
   withAndroidStyles,
   withDangerousMod,
   withMainActivity,
-} = require('@expo/config-plugins');
+} = require('expo/config-plugins');
 
 const variants = [
   {id: 'White', color: '#FFFFFFFF', enabled: true},
@@ -117,7 +117,7 @@ const bootThemeMethod = `  private fun getBootTheme(): Int {
       "LauncherGray" -> "gray"
       "LauncherBlue" -> "blue"
       "LauncherLavender" -> "lavender"
-      else -> getSharedPreferences("vega_launcher", MODE_PRIVATE)
+      else -> getSharedPreferences("airflix_launcher", MODE_PRIVATE)
         .getString("icon", "white")
     }
     return when (selectedIcon) {
@@ -165,7 +165,9 @@ const writeLauncherResources = resRoot => {
       path.join(drawable, `ic_launcher_foreground_${id}.xml`),
       `<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
     android:gravity="center"
-    android:src="@mipmap/ic_launcher_foreground" />\n`,
+    android:src="@mipmap/ic_launcher_foreground"
+    android:tint="${variant.color}"
+    android:tintMode="src_in" />\n`,
     );
     fs.writeFileSync(
       path.join(drawableV26, `ic_launcher_${id}.xml`),
@@ -230,7 +232,7 @@ const withLauncherResources = config =>
       copySplashResources(projectRoot, resRoot);
       patchGeneratedBootSplashFiles(
         projectRoot,
-        modConfig.android?.package || 'com.venom.airflix',
+        modConfig.android?.package || 'com.airflix',
       );
       return modConfig;
     },

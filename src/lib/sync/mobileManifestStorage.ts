@@ -4,10 +4,12 @@ import {getSafEntryName} from '../downloadLocation';
 import {
   parseSyncManifest,
   AIRFLIX_SYNC_DIRECTORY,
-  type AirFlixSyncManifest,
+  type AirflixSyncManifest,
 } from './manifest';
 
 const MANIFEST_MIME_TYPE = 'application/json';
+
+let manifestWriteQueue: Promise<void> = Promise.resolve();
 
 const findChild = async (directoryUri: string, name: string) => {
   const entries =
@@ -34,7 +36,7 @@ const getSyncDirectory = async (
 
 export const readMobileSyncManifests = async (
   location: SafDownloadLocation,
-): Promise<AirFlixSyncManifest[]> => {
+): Promise<AirflixSyncManifest[]> => {
   const directory = await getSyncDirectory(location, false);
   if (!directory) {
     return [];
@@ -51,38 +53,45 @@ export const readMobileSyncManifests = async (
       }),
   );
   return manifests.filter(
-    (manifest): manifest is AirFlixSyncManifest => manifest !== null,
+    (manifest): manifest is AirflixSyncManifest => manifest !== null,
   );
 };
 
-export const writeMobileSyncManifest = async (
+const writeMobileSyncManifestNow = async (
   location: SafDownloadLocation,
-  manifest: AirFlixSyncManifest,
+  manifest: AirflixSyncManifest,
 ): Promise<void> => {
   const directory = await getSyncDirectory(location, true);
   if (!directory) {
-    throw new Error('Unable to create AirFlix sync directory');
+    throw new Error('Unable to create Airflix sync directory');
   }
   const fileName = `airflix-${manifest.deviceId}.json`;
   const existing = await findChild(directory, fileName);
-  if (existing) {
-    await FileSystem.StorageAccessFramework.deleteAsync(existing);
-  }
-  const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-    directory,
-    fileName,
-    MANIFEST_MIME_TYPE,
-  );
+  const fileUri =
+    existing ||
+    (await FileSystem.StorageAccessFramework.createFileAsync(
+      directory,
+      fileName,
+      MANIFEST_MIME_TYPE,
+    ));
   const content = JSON.stringify(manifest);
   await FileSystem.StorageAccessFramework.writeAsStringAsync(fileUri, content);
   const written =
     await FileSystem.StorageAccessFramework.readAsStringAsync(fileUri);
   if (!parseSyncManifest(written)) {
-    await FileSystem.StorageAccessFramework.deleteAsync(fileUri).catch(
-      () => undefined,
-    );
-    throw new Error('AirFlix sync manifest verification failed');
+    throw new Error('Airflix sync manifest verification failed');
   }
+};
+
+export const writeMobileSyncManifest = (
+  location: SafDownloadLocation,
+  manifest: AirflixSyncManifest,
+): Promise<void> => {
+  const write = manifestWriteQueue.then(() =>
+    writeMobileSyncManifestNow(location, manifest),
+  );
+  manifestWriteQueue = write.catch(() => undefined);
+  return write;
 };
 
 export const resolveMobileSyncFile = async (

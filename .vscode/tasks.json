@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "AirFlix Metro 8082",
+			"label": "Airflix Metro 8082",
 			"type": "shell",
 			"command": "npx",
 			"args": [

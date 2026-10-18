@@ -41,18 +41,18 @@ describe('downloads store', () => {
   });
 
   it('uses the same download IDs as desktop', () => {
-    expect(createSeriesDownloadId('Vega Show', 'Season 2', 2)).toBe(
-      'Vega Show_SSeason 2_E3',
+    expect(createSeriesDownloadId('Airflix Show', 'Season 2', 2)).toBe(
+      'Airflix Show_SSeason 2_E3',
     );
-    expect(createDirectDownloadId('Vega Movie', 0)).toBe('Vega Movie_direct_0');
+    expect(createDirectDownloadId('Airflix Movie', 0)).toBe('Airflix Movie_direct_0');
   });
 
   it('stores downloads by their desktop-compatible ID', () => {
-    const id = createSeriesDownloadId('Vega Show', 'Season 1', 0);
+    const id = createSeriesDownloadId('Airflix Show', 'Season 1', 0);
     useDownloadsStore.getState().enqueueDownload({
       id,
-      title: 'Vega Show Season 1 Episode 1',
-      showName: 'Vega Show',
+      title: 'Airflix Show Season 1 Episode 1',
+      showName: 'Airflix Show',
       seasonTitle: 'Season 1',
       episodeName: 'Episode 1',
       background: 'https://example.com/background.jpg',
@@ -78,18 +78,18 @@ describe('downloads store', () => {
   });
 
   it('updates progress and completion state', () => {
-    const id = createDirectDownloadId('Vega Movie', 0);
+    const id = createDirectDownloadId('Airflix Movie', 0);
     const store = useDownloadsStore.getState();
     store.enqueueDownload({
       id,
-      title: 'Vega Movie',
+      title: 'Airflix Movie',
       type: 'movie',
       url: 'https://example.com/video.mp4',
     });
     store.updateProgress(id, 50, 100, 10);
     store.markCompleted(id, {
-      filePath: 'content://downloads/vega-movie',
-      finalDocumentUri: 'content://downloads/vega-movie',
+      filePath: 'content://downloads/airflix-movie',
+      finalDocumentUri: 'content://downloads/airflix-movie',
       totalBytes: 100,
     });
 
@@ -100,6 +100,37 @@ describe('downloads store', () => {
       status: 'completed',
       downloadedBytes: 100,
       speed: 0,
+    });
+  });
+
+  it('does not let late progress events overwrite a network pause', () => {
+    const id = createDirectDownloadId('Airflix Movie', 0);
+    const store = useDownloadsStore.getState();
+    store.enqueueDownload({
+      id,
+      title: 'Airflix Movie',
+      type: 'movie',
+      url: 'https://example.com/video.mp4',
+    });
+    store.updateDownload(id, {
+      status: 'paused',
+      speed: 0,
+      canPause: false,
+      canResume: true,
+      errorCode: 'NETWORK_INTERRUPTED',
+      errorMessage: 'Waiting for network connection',
+    });
+
+    store.updateProgress(id, 50, 100, 10);
+
+    expect(useDownloadsStore.getState().downloads[id]).toMatchObject({
+      status: 'paused',
+      downloadedBytes: 50,
+      totalBytes: 100,
+      speed: 0,
+      canResume: true,
+      errorCode: 'NETWORK_INTERRUPTED',
+      errorMessage: 'Waiting for network connection',
     });
   });
 
@@ -136,10 +167,10 @@ describe('downloads store', () => {
   });
 
   it('marks active persisted work as interrupted during reconciliation', () => {
-    const id = createDirectDownloadId('Vega Movie', 0);
+    const id = createDirectDownloadId('Airflix Movie', 0);
     useDownloadsStore.getState().enqueueDownload({
       id,
-      title: 'Vega Movie',
+      title: 'Airflix Movie',
       type: 'movie',
       url: 'https://example.com/video.mp4',
       status: 'downloading',

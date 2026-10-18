@@ -68,7 +68,7 @@ export interface SyncTombstone {
   deletedAt: number;
 }
 
-export interface AirFlixSyncManifest {
+export interface AirflixSyncManifest {
   schemaVersion: number;
   deviceId: string;
   revision: number;
@@ -85,6 +85,8 @@ export interface MergedSyncState {
   watchlist: Record<string, SyncedWatchListItem>;
   tombstones: Record<string, SyncTombstone>;
 }
+
+export const MAX_SYNC_HISTORY_ITEMS = 50;
 
 export const getTombstoneKey = (kind: SyncRecordKind, id: string): string =>
   `${kind}:${id}`;
@@ -121,11 +123,11 @@ export const getDownloadMediaKey = (item: SyncedDownload): string => {
   return `${item.type}:${identity}:${getSeasonKey(item)}:${getEpisodeKey(item)}`;
 };
 
-const isManifest = (value: unknown): value is AirFlixSyncManifest => {
+const isManifest = (value: unknown): value is AirflixSyncManifest => {
   if (!value || typeof value !== 'object') {
     return false;
   }
-  const manifest = value as Partial<AirFlixSyncManifest>;
+  const manifest = value as Partial<AirflixSyncManifest>;
   return (
     manifest.schemaVersion === AIRFLIX_SYNC_SCHEMA_VERSION &&
     typeof manifest.deviceId === 'string' &&
@@ -135,8 +137,8 @@ const isManifest = (value: unknown): value is AirFlixSyncManifest => {
   );
 };
 
-export const parseSyncManifest = (content: string): AirFlixSyncManifest | null => {
-  const parse = (value: string): AirFlixSyncManifest | null => {
+export const parseSyncManifest = (content: string): AirflixSyncManifest | null => {
+  const parse = (value: string): AirflixSyncManifest | null => {
     try {
       const parsed = JSON.parse(value) as unknown;
       return isManifest(parsed) ? parsed : null;
@@ -179,7 +181,7 @@ export const parseSyncManifest = (content: string): AirFlixSyncManifest | null =
 };
 
 export const mergeSyncManifests = (
-  manifests: AirFlixSyncManifest[],
+  manifests: AirflixSyncManifest[],
 ): MergedSyncState => {
   const downloads: Record<string, SyncedDownload> = {};
   const history: Record<string, SyncedHistory> = {};
@@ -208,7 +210,17 @@ export const mergeSyncManifests = (
         history[id] = item;
       } else if (item.updatedAt >= existing.updatedAt) {
         history[id] = {
+          ...existing,
           ...item,
+          title: item.title || existing.title,
+          poster: item.poster ?? existing.poster,
+          background: item.background ?? existing.background,
+          provider: item.provider ?? existing.provider,
+          link: item.link || existing.link,
+          episodeTitle: item.episodeTitle ?? existing.episodeTitle,
+          episode: item.episode ?? existing.episode,
+          type: item.type ?? existing.type,
+          isSeries: item.isSeries ?? existing.isSeries,
           progress: item.progress ?? existing.progress,
           duration: item.duration ?? existing.duration,
           currentTime: item.currentTime ?? existing.currentTime,
@@ -250,7 +262,7 @@ export const mergeSyncManifests = (
   const limitedHistory = Object.fromEntries(
     Object.entries(history)
       .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
-      .slice(0, 100),
+      .slice(0, MAX_SYNC_HISTORY_ITEMS),
   );
 
   return {downloads, history: limitedHistory, watchlist, tombstones};

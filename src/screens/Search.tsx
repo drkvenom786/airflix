@@ -16,6 +16,7 @@ import IconButton from '../components/ui/IconButton';
 import AppText from '../components/ui/Text';
 import SearchField, {type SearchFieldRef} from '../components/ui/SearchField';
 import {useM3Colors} from '../theme/M3PaletteContext';
+import AmbientBackground from '../components/ui/AmbientBackground';
 
 const MAX_VISIBLE_RESULTS = 15; // Limit number of animated items to prevent excessive callbacks
 const MAX_HISTORY_ITEMS = 30; // Maximum number of history items to store
@@ -113,7 +114,7 @@ const HistoryItem = memo(
           size={22}
           color={colors.onSurfaceVariant}
         />
-        <Text
+        <AppText
           numberOfLines={1}
           className="flex-1 mx-3"
           style={{
@@ -122,7 +123,7 @@ const HistoryItem = memo(
             fontWeight: '500',
           }}>
           {search}
-        </Text>
+        </AppText>
         <Pressable
           onPress={handleRemove}
           hitSlop={8}
@@ -310,109 +311,111 @@ const Search = () => {
   const AnimatedContainer = Animated.View;
 
   return (
-    <SafeAreaView className="flex-1 bg-m3-background">
-      {/* Title Section */}
-      <AnimatedContainer
-        entering={FadeInDown.duration(300)}
-        className="px-4 pt-5">
-        {/* <AppText
-          role="headlineLargeEmphasized"
-          className="mb-1 text-m3-on-background"></AppText> */}
-        <AppText
-          role="bodyLarge"
-          style={{color: colors.onSurfaceVariant, marginBottom: 18}}>
-          Search across all providers
-        </AppText>
-        <View className="flex-row items-center space-x-3 mb-3">
-          <View className="flex-1">
-            <SearchField
-              ref={searchFieldRef}
-              value={searchText}
-              onChangeText={setSearchText}
-              onSubmit={handleSearch}
-              placeholder="Search anime..."
-            />
-          </View>
-          {searchText.length > 0 && (
-            <IconButton
-              icon="close"
-              label="Clear search"
-              onPress={() => setSearchText('')}
-              size={18}
-            />
-          )}
-        </View>
-      </AnimatedContainer>
-
-      {/* Search Results */}
-      <View className="flex-1">
-        {searchResults.length > 0 ? (
-          <FlatList
-            data={searchResults}
-            keyExtractor={searchResultKeyExtractor}
-            renderItem={renderSearchResult}
-            contentContainerStyle={{paddingTop: 4}}
-            showsVerticalScrollIndicator={false}
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={10}
-            updateCellsBatchingPeriod={50}
-            windowSize={10}
-            initialNumToRender={10}
-          />
-        ) : searchHistory.length > 0 ? (
-          <AnimatedContainer
-            entering={FadeInDown.duration(250)}
-            className="px-4 flex-1 pt-4">
-            <View className="flex-row items-center justify-between mb-3">
-              <AppText
-                role="titleMediumEmphasized"
-                className="text-m3-on-surface">
-                Recent Searches
-              </AppText>
-              <Button compact variant="text" onPress={clearHistory}>
-                Clear all
-              </Button>
+    <AmbientBackground>
+      <SafeAreaView className="flex-1">
+        {/* Title Section */}
+        <AnimatedContainer
+          entering={FadeInDown.duration(300)}
+          className="px-4 pt-5">
+          {/* <AppText
+            role="headlineLargeEmphasized"
+            className="mb-1 text-m3-on-background"></AppText> */}
+          <AppText
+            role="bodyLarge"
+            style={{color: colors.onSurfaceVariant, marginBottom: 18}}>
+            Search across all providers
+          </AppText>
+          <View className="flex-row items-center space-x-3 mb-3">
+            <View className="flex-1">
+              <SearchField
+                ref={searchFieldRef}
+                value={searchText}
+                onChangeText={setSearchText}
+                onSubmit={handleSearch}
+                placeholder="Search anime..."
+              />
             </View>
+            {searchText.length > 0 && (
+              <IconButton
+                icon="close"
+                label="Clear search"
+                onPress={() => setSearchText('')}
+                size={18}
+              />
+            )}
+          </View>
+        </AnimatedContainer>
 
+        {/* Search Results */}
+        <View className="flex-1">
+          {searchResults.length > 0 ? (
             <FlatList
-              data={searchHistory}
-              keyExtractor={historyKeyExtractor}
+              data={searchResults}
+              keyExtractor={searchResultKeyExtractor}
+              renderItem={renderSearchResult}
+              contentContainerStyle={{paddingTop: 4, paddingBottom: 120}}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{paddingBottom: 20}}
-              renderItem={renderHistoryItem}
-              removeClippedSubviews={false}
+              removeClippedSubviews={true}
               maxToRenderPerBatch={10}
               updateCellsBatchingPeriod={50}
               windowSize={10}
               initialNumToRender={10}
             />
-          </AnimatedContainer>
-        ) : (
-          // Empty State - Only show when no history and no results
-          <AnimatedContainer
-            entering={FadeInDown.duration(300)}
-            className="items-center justify-center flex-1 px-8">
-            <View className="mb-5 rounded-[28px] bg-m3-secondary-container p-7">
-              <MaterialCommunityIcons
-                name="magnify"
-                size={32}
-                color={colors.onSecondaryContainer}
+          ) : searchHistory.length > 0 ? (
+            <AnimatedContainer
+              entering={FadeInDown.duration(250)}
+              className="px-4 flex-1 pt-4">
+              <View className="flex-row items-center justify-between mb-3">
+                <AppText
+                  role="titleMediumEmphasized"
+                  className="text-m3-on-surface">
+                  Recent Searches
+                </AppText>
+                <Button compact variant="text" onPress={clearHistory}>
+                  Clear all
+                </Button>
+              </View>
+
+              <FlatList
+                data={searchHistory}
+                keyExtractor={historyKeyExtractor}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{paddingBottom: 120}}
+                renderItem={renderHistoryItem}
+                removeClippedSubviews={false}
+                maxToRenderPerBatch={10}
+                updateCellsBatchingPeriod={50}
+                windowSize={10}
+                initialNumToRender={10}
               />
-            </View>
-            <AppText
-              role="bodyLarge"
-              className="text-center text-m3-on-surface">
-              Your next watch starts here
-            </AppText>
-            <AppText
-              role="bodyMedium"
-              className="mt-1 text-center text-m3-on-surface-variant">
-              Search by title, then browse every provider in one place
-            </AppText>
-          </AnimatedContainer>
-        )}
-      </View>
-    </SafeAreaView>
+            </AnimatedContainer>
+          ) : (
+            // Empty State - Only show when no history and no results
+            <AnimatedContainer
+              entering={FadeInDown.duration(300)}
+              className="items-center justify-center flex-1 px-8">
+              <View className="mb-5 rounded-[28px] bg-m3-secondary-container p-7">
+                <MaterialCommunityIcons
+                  name="magnify"
+                  size={32}
+                  color={colors.onSecondaryContainer}
+                />
+              </View>
+              <AppText
+                role="bodyLarge"
+                className="text-center text-m3-on-surface">
+                Your next watch starts here
+              </AppText>
+              <AppText
+                role="bodyMedium"
+                className="mt-1 text-center text-m3-on-surface-variant">
+                Search by title, then browse every provider in one place
+              </AppText>
+            </AnimatedContainer>
+          )}
+        </View>
+      </SafeAreaView>
+    </AmbientBackground>
   );
 };
 

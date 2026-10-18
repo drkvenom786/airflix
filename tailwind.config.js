@@ -62,7 +62,7 @@ const m3Colors = Object.fromEntries(
 );
 
 module.exports = {
-  content: ['./src/**/*.{html,js,jsx,ts,tsx}'],
+  content: ['./src/**/*.{html,js,jsx,ts,tsx}', '!./src/lib/services/builtinAirflix.ts'],
   presets: [require('nativewind/preset')],
   theme: {
     extend: {

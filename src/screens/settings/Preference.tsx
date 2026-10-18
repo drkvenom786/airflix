@@ -1,12 +1,25 @@
-import {View, ScrollView, Pressable, ToastAndroid} from 'react-native';
+import {AnimatedAppText} from '../../components/ui/Text';
+import {View, Pressable, ToastAndroid, Platform, StatusBar} from 'react-native';
 import React, {useState} from 'react';
+import {useNavigation} from '@react-navigation/native';
+import Animated, {
+  FadeInUp,
+  Layout,
+  useAnimatedScrollHandler,
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  interpolateColor,
+} from 'react-native-reanimated';
+import {Ionicons} from '@expo/vector-icons';
 import {settingsStorage} from '../../lib/storage';
+import AmbientBackground from '../../components/ui/AmbientBackground';
 import RNReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Constants from 'expo-constants';
 import DownloadLocationPreference from './components/DownloadLocationPreference';
 import useNavigationPreferencesStore from '../../lib/zustand/navigationPreferencesStore';
 import DownloadConcurrencyPreference from './components/DownloadConcurrencyPreference';
-import TmdbApiKeyPreference from './components/TmdbApiKeyPreference';
 import AppText from '../../components/ui/Text';
 import SettingsSection from '../../components/ui/SettingsSection';
 import SettingsSwitchRow from '../../components/ui/SettingsSwitchRow';
@@ -19,10 +32,40 @@ import {
 } from '../../lib/utils/firebaseSafe';
 
 const Preferences = () => {
+  const navigation = useNavigation();
   const hasFirebase =
     Boolean(Constants?.expoConfig?.extra?.hasFirebase) &&
     isFirebaseNativeReady();
   const colors = useM3Colors();
+  
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const headerTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(scrollY.value, [30, 60], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [30, 60], [10, 0], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  const headerContainerStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: interpolateColor(
+        scrollY.value,
+        [30, 60],
+        ['transparent', '#000000']
+      ),
+    };
+  });
   // const [showRecentlyWatched, setShowRecentlyWatched] = useState(
   //   settingsStorage.getBool('showRecentlyWatched') || false,
   // );
@@ -81,21 +124,53 @@ const Preferences = () => {
   );
 
   return (
-    <ScrollView
-      className="h-full w-full bg-m3-background"
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{paddingBottom: 40, paddingTop: 20}}>
-      <View className="px-5">
-        <AppText
-          role="headlineLargeEmphasized"
-          className="text-m3-on-background">
-          Preferences
-        </AppText>
-        <AppText
-          role="bodyLarge"
-          className="mb-7 mt-1 text-m3-on-surface-variant">
-          Shape how AirFlix looks, plays, and downloads
-        </AppText>
+    <AmbientBackground>
+      <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+        
+        {/* Sticky Top Header Bar */}
+        <Animated.View 
+          style={[{ 
+            position: 'absolute', top: 0, left: 0, right: 0, 
+            flexDirection: 'row', alignItems: 'center',
+            paddingHorizontal: 20, 
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 5 : 45,
+            paddingBottom: 15,
+            zIndex: 10,
+          }, headerContainerStyle]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={() => navigation.goBack()} style={({pressed}) => ({ opacity: pressed ? 0.7 : 1, padding: 4, marginLeft: -4 })}>
+              <Ionicons name="arrow-back" size={28} color="#ffffff" />
+            </Pressable>
+            <AnimatedAppText style={[{ color: '#ffffff', fontSize: 20, marginLeft: 20 }, headerTextStyle]}>
+              Preferences
+            </AnimatedAppText>
+          </View>
+        </Animated.View>
+
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          className="h-full w-full"
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          overScrollMode="always"
+          entering={FadeInUp.springify()}
+          layout={Layout.springify()}
+          contentContainerStyle={{
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 85 : 120, // Push content down below the sticky bar
+            paddingBottom: 120,
+            flexGrow: 1,
+          }}>
+          
+          {/* Large Scrolling Header */}
+          <View style={{ paddingHorizontal: 20, marginBottom: 24, marginTop: 10 }}>
+            <AppText role="headlineLarge" style={{ color: '#ffffff', fontSize: 34 }}>
+              Preferences
+            </AppText>
+          </View>
+
+          <View className="px-5">
 
         <SettingsSection title="Experience">
           <SettingsSwitchRow
@@ -133,15 +208,6 @@ const Preferences = () => {
               setShowHamburgerMenu(next);
             }}
           />
-          {/* <SettingsSwitchRow
-            title="Recently watched"
-            description="Keep your resume rail on Home"
-            value={showRecentlyWatched}
-            onValueChange={next => {
-              settingsStorage.setBool('showRecentlyWatched', next);
-              setShowRecentlyWatched(next);
-            }}
-          /> */}
           <SettingsSwitchRow
             title="Disable drawer"
             value={disableDrawer}
@@ -193,8 +259,6 @@ const Preferences = () => {
             />
           </SettingsSection>
         ) : null}
-
-        <TmdbApiKeyPreference />
 
         <SettingsSection title="Playback">
           <SettingsSwitchRow
@@ -296,9 +360,12 @@ const Preferences = () => {
             </View>
           </Surface>
         </View>
+        </View>
+        </Animated.ScrollView>
       </View>
-    </ScrollView>
+    </AmbientBackground>
   );
 };
 
 export default Preferences;
+

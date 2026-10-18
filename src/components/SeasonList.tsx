@@ -1,10 +1,18 @@
-import React, {useState, useMemo, useCallback, useEffect} from 'react';
+import AppText from '../components/ui/Text';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
 import {
   View,
   TouchableOpacity,
   ToastAndroid,
   FlatList,
   ActivityIndicator,
+  Image,
   ScrollView,
   TextInput,
 } from 'react-native';
@@ -40,7 +48,8 @@ import {useM3Colors} from '../theme/M3PaletteContext';
 import MaterialDialogSurface from './ui/MaterialDialogSurface';
 import {LEGACY_TERTIARY_BACKGROUND} from '../theme/seeds';
 import Text from './ui/Text';
-import EpisodeRowContent from './EpisodeRowContent';
+import EpisodeRowContent, {getValidImageUri} from './EpisodeRowContent';
+import {setSyncedEpisodeProgress} from '../lib/sync/syncService';
 
 const CONTROL_TEXT = '#F5F0EF';
 const CONTROL_TEXT_MUTED = '#D4CBC9';
@@ -81,6 +90,12 @@ interface StickyMenuState {
   type?: string;
 }
 
+interface EpisodeDetailsState {
+  title: string;
+  description: string;
+  image?: string;
+}
+
 const getOriginalLinkIndex = <T extends {link: string}>(
   links: T[] | undefined,
   link: string,
@@ -107,12 +122,14 @@ const SeasonList: React.FC<SeasonListProps> = ({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {fetchStreams} = useStreamData();
+  const detailsPressRef = useRef<string | null>(null);
+  const episodeSortOrderKey = `episodeSortOrder:${providerValue}:${routeParams.link}`;
 
   // Early return if no LinkList provided
   if (!LinkList || LinkList.length === 0) {
     return (
       <View className="p-4">
-        <Text className="text-white text-center">No Streams Available</Text>
+        <AppText className="text-white text-center">No Streams Available</AppText>
       </View>
     );
   }
@@ -172,13 +189,27 @@ const SeasonList: React.FC<SeasonListProps> = ({
   // Search and sorting state - memoized initial values
   const [searchText, setSearchText] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(() =>
-    mainStorage.getString('episodeSortOrder') === 'desc' ? 'desc' : 'asc',
+    mainStorage.getString(episodeSortOrderKey) === 'desc' ? 'desc' : 'asc',
   );
+
+  useEffect(() => {
+    setSortOrder(
+      mainStorage.getString(episodeSortOrderKey) === 'desc' ? 'desc' : 'asc',
+    );
+  }, [episodeSortOrderKey]);
 
   // External player state
   const [showServerModal, setShowServerModal] = useState<boolean>(false);
   const [externalPlayerStreams, setExternalPlayerStreams] = useState<any[]>([]);
   const [isLoadingStreams, setIsLoadingStreams] = useState<boolean>(false);
+  const [episodeDetails, setEpisodeDetails] =
+    useState<EpisodeDetailsState | null>(null);
+  const [episodeDetailsImageFailed, setEpisodeDetailsImageFailed] =
+    useState(false);
+
+  useEffect(() => {
+    setEpisodeDetailsImageFailed(false);
+  }, [episodeDetails?.image]);
 
   // VLC loading animation - using shared value so it reacts to vlcLoading state
   const vlcRotation = useSharedValue(0);
@@ -266,8 +297,8 @@ const SeasonList: React.FC<SeasonListProps> = ({
   const toggleSortOrder = useCallback(() => {
     const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
     setSortOrder(newOrder);
-    mainStorage.setString('episodeSortOrder', newOrder);
-  }, [sortOrder]);
+    mainStorage.setString(episodeSortOrderKey, newOrder);
+  }, [episodeSortOrderKey, sortOrder]);
 
   // Memoized season change handler
   const handleSeasonChange = useCallback(
@@ -417,13 +448,40 @@ const SeasonList: React.FC<SeasonListProps> = ({
       cacheStorage.setString(
         stickyMenu.link,
         JSON.stringify({
-          position: 10000,
+          position: 1,
           duration: 1,
         }),
       );
+      const episode = [
+        ...episodeList,
+        ...(activeSeason.directLinks || []),
+      ].find(item => item.link === stickyMenu.link);
+      if (episode) {
+        setSyncedEpisodeProgress({
+          episode,
+          title: metaTitle,
+          poster: poster.poster,
+          background: poster.background,
+          provider: providerValue,
+          infoUrl: routeParams.link,
+          type,
+          position: 1,
+          duration: 1,
+        });
+      }
       setStickyMenu({active: false});
     }
-  }, [stickyMenu.link]);
+  }, [
+    activeSeason.directLinks,
+    episodeList,
+    metaTitle,
+    poster.background,
+    poster.poster,
+    providerValue,
+    routeParams.link,
+    stickyMenu.link,
+    type,
+  ]);
 
   // Memoized mark as unwatched handler
   const markAsUnwatched = useCallback(() => {
@@ -435,9 +493,36 @@ const SeasonList: React.FC<SeasonListProps> = ({
           duration: 1,
         }),
       );
+      const episode = [
+        ...episodeList,
+        ...(activeSeason.directLinks || []),
+      ].find(item => item.link === stickyMenu.link);
+      if (episode) {
+        setSyncedEpisodeProgress({
+          episode,
+          title: metaTitle,
+          poster: poster.poster,
+          background: poster.background,
+          provider: providerValue,
+          infoUrl: routeParams.link,
+          type,
+          position: 0,
+          duration: 1,
+        });
+      }
       setStickyMenu({active: false});
     }
-  }, [stickyMenu.link]);
+  }, [
+    activeSeason.directLinks,
+    episodeList,
+    metaTitle,
+    poster.background,
+    poster.poster,
+    providerValue,
+    routeParams.link,
+    stickyMenu.link,
+    type,
+  ]);
 
   // Memoized sticky menu external player handler
   const handleStickyMenuExternalPlayer = useCallback(() => {
@@ -461,6 +546,38 @@ const SeasonList: React.FC<SeasonListProps> = ({
         activeSeason.title,
         downloadIndex,
       );
+      const handleEpisodePress = () => {
+        const localDownload =
+          useDownloadsStore.getState().downloads[downloadId];
+        if (localDownload?.status === 'completed') {
+          navigation.navigate('Player', {
+            episodeList: [
+              {
+                id: localDownload.id,
+                title: item.title,
+                link: localDownload.filePath,
+                sourceLink: localDownload.sourceLink,
+              },
+            ],
+            linkIndex: 0,
+            type: '',
+            directUrl: localDownload.filePath,
+            primaryTitle: metaTitle,
+            secondaryTitle: activeSeason.title,
+            poster,
+            providerValue,
+            infoUrl: localDownload.infoUrl || routeParams.link,
+          });
+          return;
+        }
+        playHandler({
+          linkIndex: index,
+          type,
+          primaryTitle: metaTitle,
+          seasonTitle: activeSeason?.title || '',
+          episodeData: filteredAndSortedEpisodes,
+        });
+      };
       return (
         <View
           key={item.link + index}
@@ -480,40 +597,18 @@ const SeasonList: React.FC<SeasonListProps> = ({
               borderWidth: 1,
             }}>
             <TouchableOpacity
+              activeOpacity={0.65}
               className="min-w-0 flex-1 items-center flex-row gap-x-3"
               onPress={() => {
-                const localDownload =
-                  useDownloadsStore.getState().downloads[downloadId];
-                if (localDownload?.status === 'completed') {
-                  navigation.navigate('Player', {
-                    episodeList: [
-                      {
-                        id: localDownload.id,
-                        title: item.title,
-                        link: localDownload.filePath,
-                        sourceLink: localDownload.sourceLink,
-                      },
-                    ],
-                    linkIndex: 0,
-                    type: '',
-                    directUrl: localDownload.filePath,
-                    primaryTitle: metaTitle,
-                    secondaryTitle: activeSeason.title,
-                    poster,
-                    providerValue,
-                    infoUrl: localDownload.infoUrl || routeParams.link,
-                  });
+                if (detailsPressRef.current === item.link) {
+                  detailsPressRef.current = null;
                   return;
                 }
-                playHandler({
-                  linkIndex: index,
-                  type: type,
-                  primaryTitle: metaTitle,
-                  seasonTitle: activeSeason?.title || '',
-                  episodeData: filteredAndSortedEpisodes,
-                });
+                handleEpisodePress();
               }}
-              onLongPress={() => onLongPressHandler(true, item.link, 'series')}>
+              onLongPress={() =>
+                onLongPressHandler(true, item.link, 'series')
+              }>
               <EpisodeRowContent
                 title={item.title}
                 description={item.description}
@@ -521,6 +616,25 @@ const SeasonList: React.FC<SeasonListProps> = ({
                 accentColor={primary}
                 textColor={CONTROL_TEXT}
                 mutedTextColor={CONTROL_TEXT_MUTED}
+                onShowDetailsPressIn={() => {
+                  detailsPressRef.current = item.link;
+                }}
+                onShowDetails={
+                  item.description?.trim()
+                    ? () => {
+                        setEpisodeDetails({
+                          title: item.title,
+                          description: item.description!.trim(),
+                          image: item.image,
+                        });
+                        setTimeout(() => {
+                          if (detailsPressRef.current === item.link) {
+                            detailsPressRef.current = null;
+                          }
+                        }, 0);
+                      }
+                    : undefined
+                }
               />
             </TouchableOpacity>
             <Downloader
@@ -590,6 +704,38 @@ const SeasonList: React.FC<SeasonListProps> = ({
         activeSeason?.directLinks?.length && activeSeason.directLinks.length > 1
           ? item.title
           : 'Play';
+      const handleEpisodePress = () => {
+        const localDownload =
+          useDownloadsStore.getState().downloads[downloadId];
+        if (localDownload?.status === 'completed') {
+          navigation.navigate('Player', {
+            episodeList: [
+              {
+                id: localDownload.id,
+                title: item.title,
+                link: localDownload.filePath,
+                sourceLink: localDownload.sourceLink,
+              },
+            ],
+            linkIndex: 0,
+            type: '',
+            directUrl: localDownload.filePath,
+            primaryTitle: metaTitle,
+            secondaryTitle: activeSeason.title,
+            poster,
+            providerValue,
+            infoUrl: localDownload.infoUrl || routeParams.link,
+          });
+          return;
+        }
+        playHandler({
+          linkIndex: index,
+          type,
+          primaryTitle: metaTitle,
+          seasonTitle: activeSeason?.title || '',
+          episodeData: filteredAndSortedDirectLinks,
+        });
+      };
 
       return (
         <View
@@ -610,38 +756,14 @@ const SeasonList: React.FC<SeasonListProps> = ({
               borderWidth: 1,
             }}>
             <TouchableOpacity
+              activeOpacity={0.65}
               className="min-w-0 flex-1 items-center flex-row gap-x-3"
               onPress={() => {
-                const localDownload =
-                  useDownloadsStore.getState().downloads[downloadId];
-                if (localDownload?.status === 'completed') {
-                  navigation.navigate('Player', {
-                    episodeList: [
-                      {
-                        id: localDownload.id,
-                        title: item.title,
-                        link: localDownload.filePath,
-                        sourceLink: localDownload.sourceLink,
-                      },
-                    ],
-                    linkIndex: 0,
-                    type: '',
-                    directUrl: localDownload.filePath,
-                    primaryTitle: metaTitle,
-                    secondaryTitle: activeSeason.title,
-                    poster,
-                    providerValue,
-                    infoUrl: localDownload.infoUrl || routeParams.link,
-                  });
+                if (detailsPressRef.current === item.link) {
+                  detailsPressRef.current = null;
                   return;
                 }
-                playHandler({
-                  linkIndex: index,
-                  type: type,
-                  primaryTitle: metaTitle,
-                  seasonTitle: activeSeason?.title || '',
-                  episodeData: filteredAndSortedDirectLinks,
-                });
+                handleEpisodePress();
               }}
               onLongPress={() =>
                 onLongPressHandler(true, item.link, item?.type || 'series')
@@ -653,6 +775,25 @@ const SeasonList: React.FC<SeasonListProps> = ({
                 accentColor={primary}
                 textColor={CONTROL_TEXT}
                 mutedTextColor={CONTROL_TEXT_MUTED}
+                onShowDetailsPressIn={() => {
+                  detailsPressRef.current = item.link;
+                }}
+                onShowDetails={
+                  item.description?.trim()
+                    ? () => {
+                        setEpisodeDetails({
+                          title: item.title,
+                          description: item.description.trim(),
+                          image: item.image,
+                        });
+                        setTimeout(() => {
+                          if (detailsPressRef.current === item.link) {
+                            detailsPressRef.current = null;
+                          }
+                        }, 0);
+                      }
+                    : undefined
+                }
               />
             </TouchableOpacity>
             <Downloader
@@ -714,14 +855,14 @@ const SeasonList: React.FC<SeasonListProps> = ({
         }}
         onPress={() => openExternalPlayer(item.link)}>
         <View>
-          <Text
+          <AppText
             className="text-lg capitalize font-bold"
             style={{color: CONTROL_TEXT}}>
             {item.server || `Server ${index + 1}`}
-          </Text>
-          <Text className="text-xs" style={{color: CONTROL_TEXT_MUTED}}>
+          </AppText>
+          <AppText className="text-xs" style={{color: CONTROL_TEXT_MUTED}}>
             {item.type ? `Format: ${item.type.toUpperCase()}` : ''}
-          </Text>
+          </AppText>
         </View>
         <MaterialCommunityIcons name="vlc" size={24} color={primary} />
       </TouchableOpacity>
@@ -765,13 +906,13 @@ const SeasonList: React.FC<SeasonListProps> = ({
   if (episodeError) {
     return (
       <View className="p-4">
-        <Text className="text-red-500 text-center">
+        <AppText className="text-red-500 text-center">
           {episodeError.message || 'Failed to load episodes. Please try again.'}
-        </Text>
+        </AppText>
         <TouchableOpacity
           className="mt-2 bg-red-600 p-2 rounded-md"
           onPress={() => refetchEpisodes()}>
-          <Text className="text-white text-center">Retry</Text>
+          <AppText className="text-white text-center">Retry</AppText>
         </TouchableOpacity>
       </View>
     );
@@ -793,8 +934,8 @@ const SeasonList: React.FC<SeasonListProps> = ({
       />
 
       {/* Search and Sort Controls */}
-      {(episodeList.length > 8 ||
-        (activeSeason?.directLinks && activeSeason.directLinks?.length > 8) ||
+      {(episodeList.length > 2 ||
+        (activeSeason?.directLinks && activeSeason.directLinks?.length > 2) ||
         searchText) && (
         <View className="flex-row items-center mt-2">
           <View
@@ -891,11 +1032,11 @@ const SeasonList: React.FC<SeasonListProps> = ({
         {filteredAndSortedEpisodes.length === 0 &&
           filteredAndSortedDirectLinks.length === 0 &&
           LinkList?.length === 0 && (
-            <Text
+            <AppText
               className="min-h-20 text-lg font-semibold"
               style={{color: colors.onSurfaceVariant}}>
               No stream found
-            </Text>
+            </AppText>
           )}
       </View>
 
@@ -905,27 +1046,79 @@ const SeasonList: React.FC<SeasonListProps> = ({
           <Animated.View style={[vlcLoadingAnimatedStyle]}>
             <MaterialCommunityIcons name="vlc" size={70} color={primary} />
           </Animated.View>
-          <Text
+          <AppText
             className="mt-2 text-lg font-semibold"
             style={{color: colors.onSurface}}>
             Loading available servers...
-          </Text>
+          </AppText>
         </View>
       )}
 
       <MaterialDialogSurface
+        visible={episodeDetails !== null}
+        onDismiss={() => setEpisodeDetails(null)}
+        style={{padding: 0}}>
+        {episodeDetails ? (
+          <>
+            {getValidImageUri(episodeDetails.image) &&
+            !episodeDetailsImageFailed ? (
+              <Image
+                source={{uri: getValidImageUri(episodeDetails.image)}}
+                resizeMode="cover"
+                onError={() => setEpisodeDetailsImageFailed(true)}
+                style={{aspectRatio: 16 / 9, width: '100%'}}
+              />
+            ) : (
+              <View
+                style={{
+                  alignItems: 'center',
+                  aspectRatio: 16 / 9,
+                  backgroundColor: colors.surfaceContainerHighest,
+                  justifyContent: 'center',
+                  width: '100%',
+                }}>
+                <MaterialCommunityIcons
+                  name="image-off-outline"
+                  size={44}
+                  color={colors.onSurfaceVariant}
+                />
+              </View>
+            )}
+            <View style={{padding: 20}}>
+              <AppText
+                role="titleLarge"
+                style={{color: colors.onSurface, fontWeight: '700'}}>
+                {episodeDetails.title}
+              </AppText>
+              <ScrollView style={{maxHeight: 230}}>
+                <AppText
+                  role="bodyMedium"
+                  style={{
+                    color: colors.onSurfaceVariant,
+                    lineHeight: 22,
+                    marginTop: 10,
+                  }}>
+                  {episodeDetails.description}
+                </AppText>
+              </ScrollView>
+            </View>
+          </>
+        ) : null}
+      </MaterialDialogSurface>
+
+      <MaterialDialogSurface
         visible={showServerModal}
         onDismiss={() => setShowServerModal(false)}>
-        <Text
+        <AppText
           className="mb-2 text-center text-xl font-bold"
           style={{color: colors.onSurface}}>
           Select External Player Server
-        </Text>
-        <Text
+        </AppText>
+        <AppText
           className="mb-4 text-center text-sm"
           style={{color: colors.onSurfaceVariant}}>
           {externalPlayerStreams.length} servers available
-        </Text>
+        </AppText>
 
         {isLoadingStreams ? (
           <ActivityIndicator size="large" color={primary} />
@@ -936,11 +1129,11 @@ const SeasonList: React.FC<SeasonListProps> = ({
                 renderServerItem(item, index),
               )}
               {externalPlayerStreams.length === 0 && (
-                <Text
+                <AppText
                   className="p-4 text-center"
                   style={{color: colors.onSurfaceVariant}}>
                   No servers available
-                </Text>
+                </AppText>
               )}
             </ScrollView>
 
@@ -951,11 +1144,11 @@ const SeasonList: React.FC<SeasonListProps> = ({
                 borderRadius: 18,
               }}
               onPress={() => setShowServerModal(false)}>
-              <Text
+              <AppText
                 className="text-center font-bold"
                 style={{color: colors.onSecondaryContainer}}>
                 Cancel
-              </Text>
+              </AppText>
             </TouchableOpacity>
           </>
         )}
@@ -964,11 +1157,11 @@ const SeasonList: React.FC<SeasonListProps> = ({
       <MaterialDialogSurface
         visible={stickyMenu.active}
         onDismiss={() => setStickyMenu({active: false})}>
-        <Text
+        <AppText
           className="mb-4 text-xl font-bold"
           style={{color: colors.onSurface}}>
           Episode actions
-        </Text>
+        </AppText>
         <View style={{gap: 10}}>
           {isCompleted(stickyMenu.link || '') ? (
             <TouchableOpacity
@@ -979,7 +1172,7 @@ const SeasonList: React.FC<SeasonListProps> = ({
               }}
               onPress={markAsUnwatched}>
               <Ionicons name="checkmark-done" size={30} color={primary} />
-              <Text style={{color: colors.onSurface}}>Mark as unwatched</Text>
+              <AppText style={{color: colors.onSurface}}>Mark as unwatched</AppText>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -990,7 +1183,7 @@ const SeasonList: React.FC<SeasonListProps> = ({
               }}
               onPress={markAsWatched}>
               <Ionicons name="checkmark" size={25} color={primary} />
-              <Text style={{color: colors.onSurface}}>Mark as watched</Text>
+              <AppText style={{color: colors.onSurface}}>Mark as watched</AppText>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -1001,7 +1194,7 @@ const SeasonList: React.FC<SeasonListProps> = ({
             }}
             onPress={handleStickyMenuExternalPlayer}>
             <Feather name="external-link" size={20} color={primary} />
-            <Text style={{color: colors.onSurface}}>External player</Text>
+            <AppText style={{color: colors.onSurface}}>External player</AppText>
           </TouchableOpacity>
         </View>
       </MaterialDialogSurface>

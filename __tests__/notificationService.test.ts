@@ -25,6 +25,11 @@ jest.mock('@notifee/react-native', () => ({
   AndroidForegroundServiceType: {
     FOREGROUND_SERVICE_TYPE_DATA_SYNC: 1,
   },
+  AndroidLaunchActivityFlag: {
+    SINGLE_TOP: 1,
+    NEW_TASK: 2,
+    CLEAR_TOP: 4,
+  },
   EventType: {PRESS: 1, ACTION_PRESS: 2},
   AuthorizationStatus: {
     NOT_DETERMINED: -1,
@@ -46,7 +51,7 @@ jest.mock('@dr.pogodin/react-native-fs', () => ({
 jest.mock('@himanshu8443/react-native-apk-installer', () => ({
   __esModule: true,
   default: {
-    packageName: 'com.vega.test',
+    packageName: 'com.airflix.test',
     install: jest.fn(async () => undefined),
     haveUnknownAppSourcesPermission: jest.fn(async () => true),
   },
@@ -61,7 +66,7 @@ jest.mock('expo-intent-launcher', () => ({
 
 jest.mock('expo-file-system/legacy', () => ({
   getContentUriAsync: jest.fn(
-    async () => 'content://com.vega.test.FileSystemFileProvider/update.apk',
+    async () => 'content://com.airflix.test.FileSystemFileProvider/update.apk',
   ),
 }));
 
@@ -123,7 +128,13 @@ describe('notification service download lifecycle', () => {
           navigationTarget: 'downloads',
         },
         android: expect.objectContaining({
-          groupId: 'vega-downloads',
+          smallIcon: 'ic_download_notification_system',
+          pressAction: {
+            id: 'default',
+            launchActivity: 'com.airflix.test.MainActivity',
+            launchActivityFlags: [2, 4, 1],
+          },
+          groupId: 'airflix-downloads',
           sortKey: 'movie_direct_0',
           actions: [
             expect.objectContaining({pressAction: {id: 'pause-download'}}),
@@ -147,7 +158,29 @@ describe('notification service download lifecycle', () => {
 
     expect(mockDisplayNotification).toHaveBeenCalledWith(
       expect.objectContaining({
-        android: expect.objectContaining({color: '#C98A54'}),
+        android: expect.objectContaining({
+          color: '#C98A54',
+          smallIcon: 'ic_download_notification_system',
+        }),
+      }),
+    );
+  });
+
+  it('uses a static icon when a download is paused', async () => {
+    await notificationService.showDownloadProgress(
+      'Episode 1',
+      'show_s1_e1',
+      0.25,
+      'Paused',
+      'http',
+      'resume',
+    );
+
+    expect(mockDisplayNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        android: expect.objectContaining({
+          smallIcon: 'ic_download_notification',
+        }),
       }),
     );
   });
@@ -169,13 +202,14 @@ describe('notification service download lifecycle', () => {
           navigationTarget: 'downloads',
         },
         android: expect.objectContaining({
-          groupId: 'vega-downloads',
+          groupId: 'airflix-downloads',
           sortKey: 'movie_direct_0',
           actions: [
             expect.objectContaining({
               pressAction: {
                 id: 'start-now-download',
-                launchActivity: 'default',
+                launchActivity: 'com.airflix.test.MainActivity',
+                launchActivityFlags: [2, 4, 1],
               },
             }),
             expect.objectContaining({pressAction: {id: 'cancel-download'}}),
@@ -242,7 +276,7 @@ describe('notification service download lifecycle', () => {
 
     const foregroundNotification = mockDisplayNotification.mock.calls[0][0];
     expect(foregroundNotification.android).toMatchObject({
-      groupId: 'vega-downloads',
+      groupId: 'airflix-downloads',
       sortKey: '0000-summary',
       groupSummary: true,
       groupAlertBehavior: 2,
@@ -295,7 +329,7 @@ describe('notification service download lifecycle', () => {
         id: 'show_s1_e1',
         android: expect.objectContaining({
           asForegroundService: false,
-          groupId: 'vega-downloads',
+          groupId: 'airflix-downloads',
           sortKey: 'show_s1_e1',
         }),
       }),
@@ -306,7 +340,7 @@ describe('notification service download lifecycle', () => {
         id: 'show_s1_e2',
         android: expect.objectContaining({
           asForegroundService: false,
-          groupId: 'vega-downloads',
+          groupId: 'airflix-downloads',
           sortKey: 'show_s1_e2',
         }),
       }),
@@ -352,22 +386,22 @@ describe('notification service download lifecycle', () => {
       detail: {
         pressAction: {id: 'default'},
         notification: {
-          data: {action: 'install', filePath: '/cache/vega-update.apk'},
+          data: {action: 'install', filePath: '/cache/airflix-update.apk'},
         },
       } as never,
     });
 
     expect(mockStartActivityAsync).toHaveBeenCalledWith(
       'android.settings.MANAGE_UNKNOWN_APP_SOURCES',
-      {data: 'package:com.vega.test'},
+      {data: 'package:com.airflix.test'},
     );
     expect(mockGetContentUriAsync).toHaveBeenCalledWith(
-      'file:///cache/vega-update.apk',
+      'file:///cache/airflix-update.apk',
     );
     expect(mockStartActivityAsync).toHaveBeenCalledWith(
       'android.intent.action.VIEW',
       {
-        data: 'content://com.vega.test.FileSystemFileProvider/update.apk',
+        data: 'content://com.airflix.test.FileSystemFileProvider/update.apk',
         flags: 1,
         type: 'application/vnd.android.package-archive',
       },
@@ -383,7 +417,7 @@ describe('notification service download lifecycle', () => {
       detail: {
         pressAction: {id: 'default'},
         notification: {
-          data: {action: 'install', filePath: '/cache/vega-update.apk'},
+          data: {action: 'install', filePath: '/cache/airflix-update.apk'},
         },
       } as never,
     });
@@ -395,7 +429,7 @@ describe('notification service download lifecycle', () => {
         title: 'Install permission required',
         data: {
           action: 'install',
-          filePath: '/cache/vega-update.apk',
+          filePath: '/cache/airflix-update.apk',
         },
       }),
     );

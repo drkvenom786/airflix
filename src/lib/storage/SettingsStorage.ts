@@ -10,6 +10,8 @@ import {
  * Storage keys for settings
  */
 export enum SettingsKeys {
+  HAS_SHOWN_PROVIDER_POPUP = 'hasShownProviderPopup',
+  PROVIDER_CONFIG = 'providerConfig',
   // UI preferences
   PRIMARY_COLOR = 'primaryColor',
   IS_CUSTOM_THEME = 'isCustomTheme',
@@ -19,6 +21,8 @@ export enum SettingsKeys {
   ACCENT_SOURCE = 'accentSource',
   LAUNCHER_ICON = 'launcherIcon',
   DYNAMIC_INFO_ACCENT = 'dynamicInfoAccent',
+  PURE_BLACK_BACKGROUND = 'pureBlackBackground',
+  USE_LINOTEE_FONT = 'useLinoteeFont',
   // Feedback settings
   HAPTIC_FEEDBACK = 'hapticFeedback',
   NOTIFICATIONS_ENABLED = 'notificationsEnabled',
@@ -65,6 +69,14 @@ export enum SettingsKeys {
  * Settings storage manager
  */
 export class SettingsStorage {
+  hasShownProviderPopup(): boolean {
+    return mainStorage.getBool(SettingsKeys.HAS_SHOWN_PROVIDER_POPUP) || false;
+  }
+
+  setHasShownProviderPopup(value: boolean): void {
+    mainStorage.setBool(SettingsKeys.HAS_SHOWN_PROVIDER_POPUP, value);
+  }
+
   // Theme settings
   getPrimaryColor(): string {
     return mainStorage.getString(SettingsKeys.PRIMARY_COLOR) || '#FFFFFF';
@@ -80,6 +92,14 @@ export class SettingsStorage {
 
   setCustomTheme(isCustom: boolean): void {
     mainStorage.setBool(SettingsKeys.IS_CUSTOM_THEME, isCustom);
+  }
+
+  isLinoteeFontEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.USE_LINOTEE_FONT, true);
+  }
+
+  setLinoteeFontEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.USE_LINOTEE_FONT, enabled);
   }
 
   getCustomColor(): string {
@@ -110,6 +130,14 @@ export class SettingsStorage {
 
   setDynamicInfoAccentEnabled(enabled: boolean): void {
     mainStorage.setBool(SettingsKeys.DYNAMIC_INFO_ACCENT, enabled);
+  }
+
+  isPureBlackBackgroundEnabled(): boolean {
+    return mainStorage.getBool(SettingsKeys.PURE_BLACK_BACKGROUND, false);
+  }
+
+  setPureBlackBackgroundEnabled(enabled: boolean): void {
+    mainStorage.setBool(SettingsKeys.PURE_BLACK_BACKGROUND, enabled);
   }
 
   getLauncherIcon(): 'white' | 'tomato' | 'gray' | 'blue' | 'lavender' {

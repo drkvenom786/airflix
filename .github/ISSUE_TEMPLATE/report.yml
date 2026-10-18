@@ -1,5 +1,5 @@
 name: 🐞 Bug Report
-description: Report a bug or issue with the AirFlix app
+description: Report a bug or issue with the Airflix app
 labels: [bug]
 body:
 
@@ -28,7 +28,7 @@ body:
     - type: input
       id: airflix-version
       attributes:
-          label: AirFlix version
+          label: Airflix version
           description: Specify the version of the app you are using.
           placeholder: |
               Example: "1.0"

@@ -1,4 +1,5 @@
-import {SafeAreaView, ScrollView, RefreshControl, View} from 'react-native';
+import {SafeAreaView, RefreshControl, View} from 'react-native';
+import AmbientBackground from '../../components/ui/AmbientBackground';
 import Slider from '../../components/Slider';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import HeroOptimized from '../../components/Hero';
@@ -14,7 +15,7 @@ import ProviderDrawer from '../../components/ProviderDrawer';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {HomeStackParamList} from '../../App';
 import {Drawer} from 'react-native-drawer-layout';
-import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {GestureHandlerRootView, ScrollView} from 'react-native-gesture-handler';
 import {providerManager} from '../../lib/services/ProviderManager';
 import {Catalog} from '../../lib/providers/types';
 import Tutorial from '../../components/Touturial';
@@ -24,6 +25,7 @@ import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
 import ContinueWatching from '../../components/ContinueWatching';
 import StatusBarScrim from '../../components/ui/StatusBarScrim';
+import FirstOpenProviderPopup from '../../components/FirstOpenProviderPopup';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Home'>;
 
@@ -175,9 +177,11 @@ const Home = ({}: Props) => {
 
   return (
     <QueryErrorBoundary>
-      <GestureHandlerRootView style={{flex: 1}}>
-        <StatusBarScrim visible={statusBarScrimVisible} />
-        <SafeAreaView className="flex-1 bg-m3-background">
+      <AmbientBackground>
+        <FirstOpenProviderPopup />
+        <GestureHandlerRootView style={{flex: 1}}>
+          <StatusBarScrim visible={statusBarScrimVisible} />
+          <SafeAreaView className="flex-1">
           <Drawer
             open={isDrawerOpen}
             onOpen={() => setIsDrawerOpen(true)}
@@ -198,7 +202,7 @@ const Home = ({}: Props) => {
               onScroll={handleScroll}
               scrollEventThrottle={16} // Optimize scroll performance
               showsVerticalScrollIndicator={false}
-              className="bg-m3-background"
+              contentContainerStyle={{ paddingBottom: 120 }}
               refreshControl={
                 <RefreshControl
                   colors={[colors.primary]}
@@ -223,8 +227,9 @@ const Home = ({}: Props) => {
               <View className="h-8" />
             </ScrollView>
           </Drawer>
-        </SafeAreaView>
-      </GestureHandlerRootView>
+          </SafeAreaView>
+        </GestureHandlerRootView>
+      </AmbientBackground>
     </QueryErrorBoundary>
   );
 };

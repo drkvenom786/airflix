@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const {withDangerousMod, withMainApplication} = require('@expo/config-plugins');
+const {withDangerousMod, withMainApplication} = require('expo/config-plugins');
 
 const SAF_COPY_MODULE_SOURCE = packageName => `package ${packageName}
 
@@ -93,7 +93,7 @@ function withSafCopyModule(config) {
     'android',
     async cfg => {
       const projectRoot = cfg.modRequest.projectRoot;
-      const packageName = cfg.android?.package || 'com.venom.airflix';
+      const packageName = cfg.android?.package || 'com.airflix';
       const packagePath = packageName.replace(/\./g, '/');
       const targetFile = path.join(
         projectRoot,

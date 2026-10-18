@@ -77,17 +77,14 @@ const Hero = memo(({isDrawerOpen, onOpenDrawer}: HeroProps) => {
   const colors = useM3Colors();
   const insets = useSafeAreaInsets();
   const [logoFailed, setLogoFailed] = useState(false);
-  const [searchActive, setSearchActive] = useState(false);
-  const [searchText, setSearchText] = useState('');
   const [searchButtonColor, setSearchButtonColor] = useState('#FFFFFF');
-  const searchFieldRef = useRef<SearchFieldRef>(null);
   const provider = useContentStore(state => state.provider);
   const hero = useHeroStore(state => state.hero);
   const navigation =
     useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const {data: heroData, error} = useHeroMetadata(
     hero?.link || '',
-    provider.value,
+    provider?.value || '',
   );
 
   const imageSource = useMemo(
@@ -111,20 +108,6 @@ const Hero = memo(({isDrawerOpen, onOpenDrawer}: HeroProps) => {
     setLogoFailed(false);
   }, [heroData?.logo]);
 
-  useEffect(() => {
-    if (!searchActive) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => searchFieldRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [searchActive]);
-
-  useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidHide', () => {
-      setSearchActive(false);
-    });
-    return () => subscription.remove();
-  }, []);
 
   const updateSearchButtonColor = useCallback(async () => {
     if (!imageUri) {
@@ -168,33 +151,10 @@ const Hero = memo(({isDrawerOpen, onOpenDrawer}: HeroProps) => {
     }
     navigation.navigate('Info', {
       link: hero.link,
-      provider: provider.value,
+      provider: provider?.value || '',
       poster: heroData?.poster || heroData?.image || heroData?.background,
     });
-  }, [hero, heroData, navigation, provider.value]);
-  const submitProviderSearch = useCallback(
-    (value: string) => {
-      const query = value.trim();
-      if (!query) {
-        return;
-      }
-      setSearchActive(false);
-      if (/^https?:\/\//i.test(query)) {
-        navigation.navigate('Info', {
-          link: query,
-          provider: provider.value,
-        });
-        return;
-      }
-      navigation.navigate('ScrollList', {
-        providerValue: provider.value,
-        filter: query,
-        title: provider.display_name,
-        isSearch: true,
-      });
-    },
-    [navigation, provider.display_name, provider.value],
-  );
+  }, [hero, heroData, navigation, provider?.value]);
 
   return (
     <View
@@ -240,33 +200,19 @@ const Hero = memo(({isDrawerOpen, onOpenDrawer}: HeroProps) => {
           right: 16,
           top: insets.top + 6,
         }}>
-        {searchActive ? (
-          <Animated.View entering={FadeIn.duration(180)} style={{flex: 1}}>
-            <SearchField
-              ref={searchFieldRef}
-              value={searchText}
-              onChangeText={setSearchText}
-              onSubmit={submitProviderSearch}
-              placeholder={`Search in ${provider.display_name}`}
-            />
-          </Animated.View>
-        ) : (
-          <>
-            <HeroTopButton
-              icon="menu"
-              iconColor={searchButtonColor}
-              label="Open provider drawer"
-              disabled={isDrawerOpen}
-              onPress={onOpenDrawer}
-            />
-            <HeroTopButton
-              icon="magnify"
-              iconColor={searchButtonColor}
-              label={`Search in ${provider.display_name}`}
-              onPress={() => setSearchActive(true)}
-            />
-          </>
-        )}
+<HeroTopButton
+          icon="menu"
+          iconColor={searchButtonColor}
+          label="Open provider drawer"
+          disabled={isDrawerOpen}
+          onPress={onOpenDrawer}
+        />
+        <HeroTopButton
+          icon="cog"
+          iconColor={searchButtonColor}
+          label="Settings"
+          onPress={() => navigation.navigate('SettingsStack' as any)}
+        />
       </View>
 
       <Animated.View

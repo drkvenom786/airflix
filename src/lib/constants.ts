@@ -7,7 +7,7 @@ export const FLAGS = {
 
 export const themes: {name: string; color: string}[] = [
   {
-    name: 'AirFlix',
+    name: 'Airflix',
     color: '#FF6347',
   },
   {
@@ -45,7 +45,7 @@ export const themes: {name: string; color: string}[] = [
 ];
 
 export const socialLinks = {
-  github: 'https://github.com/drkvenom786/airflix',
+  github: 'https://github.com/d0x-dev/AirFlix',
   discord: 'https://discord.gg/cr42m6maWy',
-  sponsor: 'https://github.com/sponsors/drkvenom786',
+  sponsor: 'https://github.com/sponsors/d0x-dev',
 };

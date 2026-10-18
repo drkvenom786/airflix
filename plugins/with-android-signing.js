@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const {withDangerousMod} = require('@expo/config-plugins');
+const {withDangerousMod} = require('expo/config-plugins');
 
 /**
  * Adds release signing configuration that reads from env vars after prebuild.
@@ -27,10 +27,10 @@ module.exports = function withAndroidSigning(config) {
 android {
     signingConfigs {
         release {
-            def envStoreFile = System.getenv('MYAPP_UPLOAD_STORE_FILE')
-            def envStorePassword = System.getenv('MYAPP_UPLOAD_STORE_PASSWORD')
-            def envKeyAlias = System.getenv('MYAPP_UPLOAD_KEY_ALIAS')
-            def envKeyPassword = System.getenv('MYAPP_UPLOAD_KEY_PASSWORD')
+            def envStoreFile = System.getenv('MYAPP_UPLOAD_STORE_FILE') ?: 'airflix-key.keystore'
+            def envStorePassword = System.getenv('MYAPP_UPLOAD_STORE_PASSWORD') ?: 'airflix123'
+            def envKeyAlias = System.getenv('MYAPP_UPLOAD_KEY_ALIAS') ?: 'airflix'
+            def envKeyPassword = System.getenv('MYAPP_UPLOAD_KEY_PASSWORD') ?: 'airflix123'
             
             if (envStoreFile && envStorePassword && envKeyAlias && envKeyPassword) {
                 def keystoreFile = file(envStoreFile)

@@ -1,8 +1,53 @@
-import {View, Text, ScrollView, TouchableOpacity} from 'react-native';
-import React from 'react';
+import AppText from '../components/ui/Text';
+import {View, Text, ScrollView, TouchableOpacity, Image} from 'react-native';
+import React, {useState} from 'react';
 import useContentStore from '../lib/zustand/contentStore';
 import {MaterialIcons} from '@expo/vector-icons';
 import {useM3Colors} from '../theme/M3PaletteContext';
+
+const ProviderDrawerItemIcon = ({
+  icon,
+  providerValue,
+  isSelected,
+  primaryColor,
+}: {
+  icon?: string;
+  providerValue: string;
+  isSelected: boolean;
+  primaryColor: string;
+}) => {
+  const [imageError, setImageError] = useState(false);
+  const isAirflix = providerValue?.toLowerCase() === 'airflix';
+
+  if (isAirflix) {
+    return (
+      <Image
+        source={require('../../assets/icon.png')}
+        style={{width: 24, height: 24, borderRadius: 6}}
+        resizeMode="cover"
+      />
+    );
+  }
+
+  if (icon && !imageError) {
+    return (
+      <Image
+        source={{uri: icon}}
+        style={{width: 24, height: 24, borderRadius: 6}}
+        resizeMode="cover"
+        onError={() => setImageError(true)}
+      />
+    );
+  }
+
+  return (
+    <MaterialIcons
+      name="movie"
+      size={20}
+      color={isSelected ? primaryColor : '#888'}
+    />
+  );
+};
 
 const ProviderDrawer = ({onClose}: {onClose: () => void}) => {
   const {provider, setProvider, installedProviders} = useContentStore(
@@ -13,8 +58,8 @@ const ProviderDrawer = ({onClose}: {onClose: () => void}) => {
   return (
     <View className="flex-1" style={{backgroundColor: 'rgba(0,0,0,0.8)'}}>
       <View className="mt-10 px-4 pb-4 border-b border-white/10">
-        <Text className="text-white text-2xl font-bold">Select Provider</Text>
-        <Text className="text-gray-400 mt-1 text-sm">Content source</Text>
+        <AppText className="text-white text-2xl font-bold">Select Provider</AppText>
+        <AppText className="text-gray-400 mt-1 text-sm">Content source</AppText>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-2">
@@ -29,19 +74,22 @@ const ProviderDrawer = ({onClose}: {onClose: () => void}) => {
               provider.value === item.value ? 'bg-white/10' : 'bg-transparent'
             }`}>
             <View className="flex-row items-center">
-              <MaterialIcons
-                name="movie"
-                size={20}
-                color={provider.value === item.value ? primary : '#888'}
-              />
-              <Text
-                className={`ml-3 text-base ${
+              <View className="w-6 h-6 items-center justify-center overflow-hidden rounded-md mr-3">
+                <ProviderDrawerItemIcon
+                  icon={item.icon}
+                  providerValue={item.value}
+                  isSelected={provider.value === item.value}
+                  primaryColor={primary}
+                />
+              </View>
+              <AppText
+                className={`text-base ${
                   provider.value === item.value
                     ? 'text-white font-medium'
                     : 'text-gray-400'
                 }`}>
                 {item.display_name}
-              </Text>
+              </AppText>
             </View>
             {provider.value === item.value && (
               <MaterialIcons name="check" size={20} color={primary} />

@@ -1,14 +1,26 @@
+import {AnimatedAppText} from '../../components/ui/Text';
 import React, {useState, useEffect} from 'react';
 import {
   View,
   Pressable,
   StatusBar,
-  FlatList,
+  Platform,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {SettingsStackParamList} from '../../App';
-import {MaterialCommunityIcons, FontAwesome6} from '@expo/vector-icons';
+import {MaterialCommunityIcons, FontAwesome6, Ionicons} from '@expo/vector-icons';
+import Animated, {
+  FadeInUp,
+  Layout,
+  useAnimatedScrollHandler,
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  interpolateColor,
+} from 'react-native-reanimated';
 import useThemeStore from '../../lib/zustand/themeStore';
 import useContentStore from '../../lib/zustand/contentStore';
 import {
@@ -25,6 +37,7 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {settingsStorage} from '../../lib/storage';
 import ProviderSourceManager from './components/ProviderSourceManager';
 import ProviderCard, {ProviderTestStatus} from './components/ProviderCard';
+
 import {
   ProviderDiagnosticError,
   testProvider,
@@ -39,6 +52,7 @@ import ProviderTestProgressDialog, {
 import type {ProviderDiagnosticProgress} from '../../lib/services/providerDiagnostics';
 import AppText from '../../components/ui/Text';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import AmbientBackground from '../../components/ui/AmbientBackground';
 
 type Props = NativeStackScreenProps<SettingsStackParamList, 'Extensions'>;
 
@@ -71,6 +85,37 @@ const isSameProvider = (
 
 const Extensions = ({navigation}: Props) => {
   const colors = useM3Colors();
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const headerTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(scrollY.value, [30, 60], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [30, 60], [10, 0], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  const headerContainerStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: interpolateColor(
+        scrollY.value,
+        [30, 60],
+        ['transparent', colors.background]
+      ),
+      borderBottomWidth: interpolate(scrollY.value, [30, 60], [0, 1], Extrapolation.CLAMP),
+      borderBottomColor: colors.outlineVariant,
+    };
+  });
+
   const primary = colors.primary;
   const activeExtensionProvider = useContentStore(state => state.provider);
   const setActiveExtensionProvider = useContentStore(
@@ -483,82 +528,86 @@ const Extensions = ({navigation}: Props) => {
   );
 
   return (
-    <View className="flex-1 bg-m3-background pt-10">
-      <StatusBar backgroundColor={colors.background} barStyle="light-content" />
-      <View className="flex-row items-center justify-between px-4 pb-4 pt-2">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to settings"
-          onPress={() => navigation.navigate('Settings')}
-          className="h-12 w-12 items-center justify-center rounded-2xl"
-          style={{backgroundColor: colors.surfaceContainerHigh}}>
-          <FontAwesome6 name="arrow-left" size={20} color={colors.onSurface} />
-        </Pressable>
-        <View className="mx-4 flex-1">
-          <AppText
-            role="headlineSmallEmphasized"
-            className="text-m3-on-background">
-            Providers
-          </AppText>
-          <AppText role="bodySmall" className="text-m3-on-surface-variant">
-            Install and test streaming sources
-          </AppText>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Refresh providers"
-          onPress={handleRefresh}
-          className="h-12 w-12 items-center justify-center rounded-2xl"
-          style={({pressed}) => ({
-            backgroundColor: pressed
-              ? colors.secondaryContainer
-              : colors.surfaceContainerHigh,
-          })}>
-          <MaterialCommunityIcons
-            name="refresh"
-            size={22}
-            color={colors.primary}
-          />
-        </Pressable>
-      </View>
-      <ProviderSourceManager
-        visible
-        primary={primary}
-        onSourceChanged={async (source: ProviderSource | undefined) => {
-          const author = source?.author || '';
-          setActiveSourceAuthor(author);
-          loadProviders(author);
-          await refreshProviders(author);
-        }}
-      />
-
-      <View className="mb-1 mt-6 flex-row items-center justify-between px-5">
-        <AppText role="titleLargeEmphasized" className="text-m3-on-background">
-          Available providers
-        </AppText>
-        <View
-          className="min-w-9 items-center px-2.5 py-1.5"
-          style={{
-            backgroundColor: colors.secondaryContainer,
-            borderRadius: 14,
-          }}>
-          <AppText
-            role="labelMediumEmphasized"
-            style={{color: colors.onSecondaryContainer}}>
-            {currentData.length}
-          </AppText>
-        </View>
-      </View>
+    <AmbientBackground>
+      <View style={{ flex: 1 }}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+        
+        {/* Sticky Top Header Bar */}
+        <Animated.View 
+          style={[{ 
+            position: 'absolute', top: 0, left: 0, right: 0, 
+            flexDirection: 'row', alignItems: 'center',
+            paddingHorizontal: 20, 
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 5 : 45,
+            paddingBottom: 15,
+            zIndex: 10,
+          }, headerContainerStyle]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={() => navigation.goBack()} style={({pressed}) => ({ opacity: pressed ? 0.7 : 1, padding: 4, marginLeft: -4 })}>
+              <Ionicons name="arrow-back" size={28} color="#ffffff" />
+            </Pressable>
+            <AnimatedAppText style={[{ color: '#ffffff', fontSize: 20, marginLeft: 20 }, headerTextStyle]}>
+              Provider Manager
+            </AnimatedAppText>
+          </View>
+        </Animated.View>
 
       {/* Provider list */}
-      <FlatList
+      <Animated.FlatList
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        bounces={true}
+        overScrollMode="always"
+        entering={FadeInUp.springify()}
+        layout={Layout.springify()}
+        ListHeaderComponent={
+          <>
+            <View style={{ paddingHorizontal: 20, marginBottom: 24, marginTop: 10 }}>
+              <AppText role="headlineLarge" style={{ color: '#ffffff', fontSize: 34 }}>
+                Providers
+              </AppText>
+            </View>
+            <ProviderSourceManager
+              visible
+              primary={primary}
+              onSourceChanged={async (source: ProviderSource | undefined) => {
+                const author = source?.author || '';
+                setActiveSourceAuthor(author);
+                loadProviders(author);
+                await refreshProviders(author);
+              }}
+            />
+
+            <View className="mb-1 mt-6 flex-row items-center justify-between px-5">
+              <AppText role="titleLargeEmphasized" className="text-m3-on-background">
+                Available providers
+              </AppText>
+              <View
+                className="min-w-9 items-center px-2.5 py-1.5"
+                style={{
+                  backgroundColor: colors.secondaryContainer,
+                  borderRadius: 14,
+                }}>
+                <AppText
+                  role="labelMediumEmphasized"
+                  style={{color: colors.onSecondaryContainer}}>
+                  {currentData.length}
+                </AppText>
+              </View>
+            </View>
+          </>
+        }
         data={currentData}
         keyExtractor={(item, index) =>
           `${item?.source?.author || 'none'}:${item?.value || `provider-${index}`}`
         }
         renderItem={renderProviderCard}
-        className="mt-3 flex-1"
-        contentContainerStyle={{paddingBottom: 24}}
+        className="w-full"
+        contentContainerStyle={{
+          paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 85 : 120, // Push content down below the sticky bar
+          paddingBottom: 120,
+          flexGrow: 1,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -606,7 +655,9 @@ const Extensions = ({navigation}: Props) => {
         onClose={() => setProviderTest(null)}
       />
     </View>
+    </AmbientBackground>
   );
 };
 
 export default Extensions;
+

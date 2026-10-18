@@ -8,6 +8,7 @@ import useContentStore from '../lib/zustand/contentStore';
 import AppText from '../components/ui/Text';
 import LoadingIndicator from '../components/ui/LoadingIndicator';
 import {useM3Colors} from '../theme/M3PaletteContext';
+import AmbientBackground from '../components/ui/AmbientBackground';
 
 type Props = NativeStackScreenProps<SearchStackParamList, 'SearchResults'>;
 
@@ -188,7 +189,8 @@ const SearchResults = ({route}: Props): React.ReactElement => {
   );
 
   return (
-    <SafeAreaView className="h-full w-full bg-m3-background">
+    <AmbientBackground>
+      <SafeAreaView className="h-full w-full">
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="mt-14 px-4 flex flex-row justify-between items-center gap-x-3">
           <AppText
@@ -212,9 +214,10 @@ const SearchResults = ({route}: Props): React.ReactElement => {
           {searchSliders}
           {emptySliders}
         </View>
-        <View className="h-16" />
+        <View className="h-32" />
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </AmbientBackground>
   );
 };
 

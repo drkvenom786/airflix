@@ -217,7 +217,7 @@ const ScrollList = ({route}: Props): React.ReactElement => {
           data={listData}
           numColumns={numColumns}
           key={`view-type-${viewType}-${numColumns}`}
-          contentContainerStyle={{paddingBottom: 80}}
+          contentContainerStyle={{paddingBottom: 120}}
           keyExtractor={(item, i) =>
             'isSkeleton' in item ? item.id : `${item.title}-${i}`
           }
@@ -245,7 +245,7 @@ const ScrollList = ({route}: Props): React.ReactElement => {
                   source={{
                     uri:
                       item.image ||
-                      'https://placehold.jp/24/363636/ffffff/100x150.png?text=AirFlix',
+                      'https://placehold.jp/24/363636/ffffff/100x150.png?text=Airflix',
                   }}
                   style={
                     viewType === 1

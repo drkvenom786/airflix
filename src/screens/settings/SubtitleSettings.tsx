@@ -1,13 +1,57 @@
-import {View, ScrollView} from 'react-native';
+import {AnimatedAppText} from '../../components/ui/Text';
+import {View, Pressable, Platform, StatusBar} from 'react-native';
 import React from 'react';
+import {useNavigation} from '@react-navigation/native';
+import Animated, {
+  FadeInUp,
+  Layout,
+  useAnimatedScrollHandler,
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  interpolateColor,
+} from 'react-native-reanimated';
+import {Ionicons} from '@expo/vector-icons';
 import {startActivityAsync, ActivityAction} from 'expo-intent-launcher';
 import {settingsStorage} from '../../lib/storage';
 import IconButton from '../../components/ui/IconButton';
 import SettingsRow from '../../components/ui/SettingsRow';
 import SettingsSection from '../../components/ui/SettingsSection';
 import AppText from '../../components/ui/Text';
+import AmbientBackground from '../../components/ui/AmbientBackground';
 
 const SubtitlePreference = () => {
+  const navigation = useNavigation();
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const headerTextStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(scrollY.value, [30, 60], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(scrollY.value, [30, 60], [10, 0], Extrapolation.CLAMP),
+        },
+      ],
+    };
+  });
+
+  const headerContainerStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: interpolateColor(
+        scrollY.value,
+        [30, 60],
+        ['transparent', '#000000']
+      ),
+    };
+  });
+
   const [fontSize, setFontSize] = React.useState(
     settingsStorage.getSubtitleFontSize(),
   );
@@ -59,22 +103,53 @@ const SubtitlePreference = () => {
   };
 
   return (
-    <ScrollView
-      className="h-full w-full bg-m3-background"
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{paddingBottom: 40, paddingTop: 20}}>
-      <View className="px-5">
-        <AppText
-          role="headlineLargeEmphasized"
-          className="text-m3-on-background">
-          Subtitle Preferences
-        </AppText>
-        <AppText
-          role="bodyLarge"
-          className="mb-7 mt-1 text-m3-on-surface-variant">
-          Tune subtitle readability for your player
-        </AppText>
+    <AmbientBackground>
+      <View style={{ flex: 1 }}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+        
+        {/* Sticky Top Header Bar */}
+        <Animated.View 
+          style={[{ 
+            position: 'absolute', top: 0, left: 0, right: 0, 
+            flexDirection: 'row', alignItems: 'center',
+            paddingHorizontal: 20, 
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 5 : 45,
+            paddingBottom: 15,
+            zIndex: 10,
+          }, headerContainerStyle]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={() => navigation.goBack()} style={({pressed}) => ({ opacity: pressed ? 0.7 : 1, padding: 4, marginLeft: -4 })}>
+              <Ionicons name="arrow-back" size={28} color="#ffffff" />
+            </Pressable>
+            <AnimatedAppText style={[{ color: '#ffffff', fontSize: 20, marginLeft: 20 }, headerTextStyle]}>
+              Subtitle Style
+            </AnimatedAppText>
+          </View>
+        </Animated.View>
 
+        <Animated.ScrollView
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          className="h-full w-full"
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          overScrollMode="always"
+          entering={FadeInUp.springify()}
+          layout={Layout.springify()}
+          contentContainerStyle={{
+            paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 20) + 85 : 120, // Push content down below the sticky bar
+            paddingBottom: 120,
+            flexGrow: 1,
+          }}>
+          
+          {/* Large Scrolling Header */}
+          <View style={{ paddingHorizontal: 20, marginBottom: 24, marginTop: 10 }}>
+            <AppText role="headlineLarge" style={{ color: '#ffffff', fontSize: 34 }}>
+              Subtitle Style
+            </AppText>
+          </View>
+
+          <View className="px-5">
         <SettingsSection title="Text">
           <SettingsRow
             title="Font size"
@@ -173,8 +248,11 @@ const SubtitlePreference = () => {
           />
         </SettingsSection>
       </View>
-    </ScrollView>
+      </Animated.ScrollView>
+      </View>
+    </AmbientBackground>
   );
 };
 
 export default SubtitlePreference;
+

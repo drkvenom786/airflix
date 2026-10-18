@@ -4,7 +4,7 @@ const {
   withDangerousMod,
   withMainApplication,
   withAppBuildGradle,
-} = require('@expo/config-plugins');
+} = require('expo/config-plugins');
 
 function withCustomNativeModules(config) {
   // 1. Copy the files over
@@ -12,7 +12,7 @@ function withCustomNativeModules(config) {
     'android',
     async cfg => {
       const projectRoot = cfg.modRequest.projectRoot;
-      const packageName = cfg.android?.package || 'com.venom.airflix';
+      const packageName = cfg.android?.package || 'com.airflix';
       const packagePath = packageName.replace(/\./g, '/');
       const targetDir = path.join(
         projectRoot,
@@ -45,7 +45,7 @@ function withCustomNativeModules(config) {
             // Read the file and update the package name
             let content = fs.readFileSync(sourceFile, 'utf8');
             content = content.replace(
-              /^package (com\.airflix|com\.airflix)$/m,
+              /^package com\.airflix$/m,
               `package ${packageName}`,
             );
 
@@ -64,8 +64,9 @@ function withCustomNativeModules(config) {
 
     const packagesToAdd = [
       'DohPackage()',
+      'HttpDownloadPackage()',
       'TorrentPackage()',
-      'LauncherIconPackage()',
+      'VideoThumbnailPackage()',
     ];
 
     for (const pkg of packagesToAdd) {
@@ -117,6 +118,24 @@ function withCustomNativeModules(config) {
         /dependencies\s*\{/,
         match =>
           `${match}\n    implementation 'com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0'\n`,
+      );
+    }
+
+    if (!contents.includes('com.squareup.okhttp3:okhttp:4.12.0')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match =>
+          `${match}\n    implementation 'com.squareup.okhttp3:okhttp:4.12.0'\n`,
+      );
+    }
+
+    // MediaMetadataRetriever can return the first frame for every timestamp
+    // on remote videos. Media3's frame extractor performs a real HTTP/HLS seek.
+    if (!contents.includes('androidx.media3:media3-transformer')) {
+      contents = contents.replace(
+        /dependencies\s*\{/,
+        match =>
+          `${match}\n    implementation 'androidx.media3:media3-transformer:1.8.0'\n`,
       );
     }
 

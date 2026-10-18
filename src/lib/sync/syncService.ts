@@ -15,13 +15,14 @@ import {getSafEntryName, isSafDownloadLocation} from '../downloadLocation';
 import {
   getTombstoneKey,
   getDownloadMediaKey,
+  MAX_SYNC_HISTORY_ITEMS,
   mergeSyncManifests,
   AIRFLIX_SYNC_SCHEMA_VERSION,
   type SyncTombstone,
   type SyncedDownload,
   type SyncedHistory,
   type SyncedWatchListItem,
-  type AirFlixSyncManifest,
+  type AirflixSyncManifest,
 } from './manifest';
 import {
   readMobileSyncManifests,
@@ -34,7 +35,6 @@ const REVISION_KEY = 'airflix-sync-revision';
 const TOMBSTONES_KEY = 'airflix-sync-tombstones';
 const HISTORY_KEY = 'airflix-sync-history';
 const PUBLISH_DELAY_MS = 3000;
-const MAX_HISTORY_ITEMS = 100;
 
 let initialized = false;
 let applyingRemoteState = false;
@@ -126,7 +126,7 @@ const toSyncedHistory = (item: ContinueWatchingItem): SyncedHistory => ({
   currentTime: item.position,
   isSeries: item.type === 'series',
   lastPlayed: item.updatedAt,
-  episodeTitle: item.episodeTitle,
+  episodeTitle: item.episodeTitle || item.episode.title,
   episode: item.episode,
   type: item.type,
   updatedAt: item.updatedAt,
@@ -139,7 +139,7 @@ const saveLocalHistory = (history: Record<string, SyncedHistory>) => {
   const limited = Object.fromEntries(
     Object.entries(history)
       .sort(([, a], [, b]) => b.updatedAt - a.updatedAt)
-      .slice(0, MAX_HISTORY_ITEMS),
+      .slice(0, MAX_SYNC_HISTORY_ITEMS),
   );
   mainStorage.setObject(HISTORY_KEY, limited);
   return limited;
@@ -157,7 +157,7 @@ const mergeContinueWatchingIntoHistory = (items: ContinueWatchingItem[]) => {
   return saveLocalHistory(history);
 };
 
-const buildManifest = (): AirFlixSyncManifest => {
+const buildManifest = (): AirflixSyncManifest => {
   const revision = (mainStorage.getNumber(REVISION_KEY) || 0) + 1;
   mainStorage.setNumber(REVISION_KEY, revision);
   const downloads = Object.fromEntries(
@@ -189,6 +189,15 @@ const applyRemoteHistory = (history: Record<string, SyncedHistory>) => {
   const limitedHistory = saveLocalHistory(history);
   const latestByInfoUrl = new Map<string, SyncedHistory>();
   Object.values(limitedHistory).forEach(item => {
+    const episode = item.episode;
+    const position = item.progress ?? item.currentTime ?? 0;
+    const duration = item.duration ?? 0;
+    if (episode?.link && duration > 0) {
+      cacheStorage.setString(
+        episode.link,
+        JSON.stringify({position, duration}),
+      );
+    }
     if (!item.link || !item.provider) {
       return;
     }
@@ -210,16 +219,12 @@ const applyRemoteHistory = (history: Record<string, SyncedHistory>) => {
       };
       const position = item.progress ?? item.currentTime ?? 0;
       const duration = item.duration ?? 0;
-      if (episode.link && position > 0) {
-        cacheStorage.setString(
-          episode.link,
-          JSON.stringify({position, duration}),
-        );
-      }
       return {
         id: item.link,
         title: item.title,
-        episodeTitle: item.episodeTitle,
+        episodeTitle:
+          item.episodeTitle ||
+          (episode.title !== item.title ? episode.title : undefined),
         episode,
         type: item.type || (item.isSeries ? 'series' : 'movie'),
         poster: item.poster,
@@ -250,9 +255,61 @@ const schedulePublish = () => {
   publishTimer = setTimeout(() => {
     publishTimer = undefined;
     publishSyncManifest().catch(error =>
-      console.warn('[AirFlixSync] Failed to publish manifest:', error),
+      console.warn('[AirflixSync] Failed to publish manifest:', error),
     );
   }, PUBLISH_DELAY_MS);
+};
+
+export const setSyncedEpisodeProgress = ({
+  episode,
+  title,
+  poster,
+  background,
+  provider,
+  infoUrl,
+  type,
+  position,
+  duration,
+}: {
+  episode: ContinueWatchingItem['episode'];
+  title: string;
+  poster?: string;
+  background?: string;
+  provider: string;
+  infoUrl: string;
+  type: string;
+  position: number;
+  duration: number;
+}) => {
+  const id = episode.sourceLink || episode.id || episode.link;
+  if (!id) {
+    return;
+  }
+  const updatedAt = Date.now();
+  const history = getLocalHistory();
+  history[id] = {
+    id,
+    title,
+    poster,
+    background,
+    provider,
+    link: infoUrl,
+    duration,
+    progress: position,
+    currentTime: position,
+    isSeries: type === 'series',
+    lastPlayed: updatedAt,
+    episodeTitle: episode.title,
+    episode,
+    type,
+    updatedAt,
+  };
+  saveLocalHistory(history);
+  cacheStorage.setString(
+    episode.link,
+    JSON.stringify({position, duration}),
+  );
+  schedulePublish();
 };
 
 const applyRemoteDownloads = async (

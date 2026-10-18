@@ -1,6 +1,5 @@
 import React, {ReactNode} from 'react';
-import {View} from 'react-native';
-import Surface from './Surface';
+import {View, StyleSheet} from 'react-native';
 import AppText from './Text';
 
 interface SettingsSectionProps {
@@ -9,14 +8,26 @@ interface SettingsSectionProps {
 }
 
 const SettingsSection = ({title, children}: SettingsSectionProps) => (
-  <View className="mb-6">
-    <AppText role="labelLarge" className="mb-3 text-m3-on-surface-variant">
-      {title}
+  <View style={{ marginBottom: 24 }}>
+    <AppText 
+      role="labelSmall" 
+      style={styles.headerTitle}>
+      {title.toUpperCase()}
     </AppText>
-    <Surface level="low" className="overflow-hidden">
+    <View style={{ borderRadius: 24, backgroundColor: '#232427', overflow: 'hidden' }}>
       {children}
-    </Surface>
+    </View>
   </View>
 );
+
+const styles = StyleSheet.create({
+  headerTitle: {
+    color: '#a0a0a0',
+    letterSpacing: 1.2,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    fontWeight: 'bold',
+  }
+});
 
 export default SettingsSection;

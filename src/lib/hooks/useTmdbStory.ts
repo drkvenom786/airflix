@@ -64,8 +64,7 @@ interface TmdbFindResult {
 const TMDB_API_URL = 'https://api.themoviedb.org/3';
 
 export const getTmdbApiKey = (): string =>
-  settingsStorage.getTmdbApiKey() ||
-  String(Constants.expoConfig?.extra?.tmdbApiKey || '').trim();
+  '426a40c5472a731b577da9abc723b103';
 
 const getPreferredMediaType = (type?: string): TmdbMediaType =>
   type?.toLowerCase() === 'series' || type?.toLowerCase() === 'tv'

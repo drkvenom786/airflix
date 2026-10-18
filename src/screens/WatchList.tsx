@@ -10,6 +10,7 @@ import MediaPosterCard from '../components/MediaPosterCard';
 import AppText from '../components/ui/Text';
 import {useM3Colors} from '../theme/M3PaletteContext';
 import type {WatchListItem} from '../lib/storage';
+import AmbientBackground from '../components/ui/AmbientBackground';
 
 const WatchList = () => {
   const colors = useM3Colors();
@@ -52,12 +53,13 @@ const WatchList = () => {
   );
 
   return (
-    <View className="flex-1 items-center justify-center bg-m3-background">
-      <StatusBar />
+    <AmbientBackground>
+      <View className="flex-1 items-center justify-center">
+        <StatusBar />
 
-      <View
-        className="w-full bg-m3-background"
-        style={{
+        <View
+          className="w-full"
+          style={{
           paddingTop: Platform.OS === 'android' ? 15 : 0, // Adjust for Android status bar height
         }}
       />
@@ -80,7 +82,7 @@ const WatchList = () => {
               justifyContent: 'flex-start',
             }}
             contentContainerStyle={{
-              paddingBottom: 50,
+              paddingBottom: 120,
             }}
             showsVerticalScrollIndicator={false}
           />
@@ -102,6 +104,7 @@ const WatchList = () => {
         )}
       </View>
     </View>
+    </AmbientBackground>
   );
 };
 

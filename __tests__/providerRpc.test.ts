@@ -37,7 +37,7 @@ describe('providerRpc openWebView', () => {
       data: '<html></html>',
       cookies: 'cf_clearance=mobile-token',
       cookieMap: {cf_clearance: 'mobile-token'},
-      userAgent: 'Vega Test',
+      userAgent: 'Airflix Test',
       url: 'https://drive.example.com',
     };
     mockOpenWebView.mockResolvedValue(result);

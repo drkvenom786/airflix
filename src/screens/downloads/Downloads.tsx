@@ -13,6 +13,7 @@ import useDownloadsStore, {
   selectCompletedDownloads,
 } from '../../lib/zustand/downloadsStore';
 import {useM3Colors} from '../../theme/M3PaletteContext';
+import AmbientBackground from '../../components/ui/AmbientBackground';
 import CurrentDownloadsSection from '../settings/components/CurrentDownloadsSection';
 import MissingDownloadsSection from '../settings/components/MissingDownloadsSection';
 
@@ -42,18 +43,19 @@ const Downloads = () => {
   );
 
   return (
-    <View className="flex-1 bg-m3-background">
-      <StatusBar />
-      <FlatList
-        data={groups}
-        key={columns}
-        numColumns={columns}
-        keyExtractor={item => item.id}
-        columnWrapperStyle={{gap: GRID_GAP}}
+    <AmbientBackground>
+      <View className="flex-1">
+        <StatusBar />
+        <FlatList
+          data={groups}
+          key={columns}
+          numColumns={columns}
+          keyExtractor={item => item.id}
+          columnWrapperStyle={{gap: GRID_GAP}}
         contentContainerStyle={{
           paddingHorizontal: GRID_PADDING,
           paddingTop: Platform.OS === 'android' ? 28 : 12,
-          paddingBottom: 80,
+          paddingBottom: 120,
         }}
         ListHeaderComponent={
           <View>
@@ -100,7 +102,8 @@ const Downloads = () => {
         }
         showsVerticalScrollIndicator={false}
       />
-    </View>
+      </View>
+    </AmbientBackground>
   );
 };
 

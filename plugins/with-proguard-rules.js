@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { withDangerousMod } = require('@expo/config-plugins');
+const { withDangerousMod } = require('expo/config-plugins');
 
 const RULES = `
 # Add any project specific keep options here:
@@ -10,8 +10,8 @@ const RULES = `
 -keep interface org.libtorrent4j.** { *; }
 -keep enum org.libtorrent4j.** { *; }
 
-# Keep custom native modules (both com.venom.airflix and dynamic package)
--keep class com.venom.airflix.** { *; }
+# Keep custom native modules (both com.airflix and dynamic package)
+-keep class com.airflix.** { *; }
 `;
 
 module.exports = function withProguardRules(config) {
@@ -25,14 +25,14 @@ module.exports = function withProguardRules(config) {
         'proguard-rules.pro'
       );
       
-      const packageName = cfg.android?.package || 'com.venom.airflix';
+      const packageName = cfg.android?.package || 'com.airflix';
 
       if (fs.existsSync(proguardRulesFile)) {
         let content = fs.readFileSync(proguardRulesFile, 'utf8');
         if (!content.includes('org.libtorrent4j')) {
           content += RULES;
           // Add the current package name to proguard rules
-          if (packageName !== 'com.venom.airflix') {
+          if (packageName !== 'com.airflix') {
             content += `-keep class ${packageName}.** { *; }\n`;
           }
           fs.writeFileSync(proguardRulesFile, content, 'utf8');
